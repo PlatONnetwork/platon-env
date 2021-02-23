@@ -1,26 +1,24 @@
 import os
 import sys
 from client_sdk_python.packages.platon_keys import keys
-from client_sdk_python.packages.eth_utils.curried import (
-    keccak,
-    text_if_str,
-    to_bytes
-)
+from client_sdk_python.packages.eth_utils.curried import keccak, text_if_str, to_bytes
 
-def gen_node_keypair():
-    extra_entropy = ''
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def gen_node_keypair(extra_entropy=''):
     extra_key_bytes = text_if_str(to_bytes, extra_entropy)
     key_bytes = keccak(os.urandom(32) + extra_key_bytes)
     private_key = keys.PrivateKey(key_bytes)
-    return private_key.to_hex()[2:], keys.private_key_to_public_key(private_key).to_hex()[2:]
+    return keys.private_key_to_public_key(private_key).to_hex()[2:], private_key.to_hex()[2:],
 
 
 def gen_bls_keypair():
     if 'linux' in sys.platform:
-        tool_file = os.path.abspath('bin/keytool')
+        tool_file = os.path.abspath(os.path.join(BASE_DIR, 'bin/keytool'))
         execute_cmd('chmod +x {}'.format(tool_file))
     elif 'win' in sys.platform:
-        tool_file = os.path.abspath('bin/keytool.exe')
+        tool_file = os.path.abspath(os.path.join(BASE_DIR, 'bin/keytool.exe'))
     else:
         raise Exception('This platform is not supported currently')
     keypair = execute_cmd(f'{tool_file} genblskeypair')
@@ -30,8 +28,8 @@ def gen_bls_keypair():
     private_key = lines[0].split(':')[1].strip()
     public_key = lines[1].split(':')[1].strip()
     if not private_key or not public_key:
-        raise Exception('Incorrect  bls keypair')
-    return private_key, public_key
+        raise Exception('Incorrect bls keypair')
+    return public_key, private_key
 
 
 def execute_cmd(cmd):
@@ -39,8 +37,8 @@ def execute_cmd(cmd):
     out = r.read()
     r.close()
     return out
-
-
-if __name__ == '__main__':
-    print(gen_node_keypair())
-    print(gen_bls_keypair())
+#
+#
+# if __name__ == '__main__':
+#     print(gen_node_keypair())
+#     print(gen_bls_keypair())
