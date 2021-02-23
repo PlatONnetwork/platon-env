@@ -6,29 +6,20 @@ from keytool.key import gen_node_keypair, gen_bls_keypair
 
 
 @dataclass
-class Deploy:
-    platon: str
-    keystore_dir: str = field(default='')
-    deploy_dir: str = field(default='platon')
-    local_tmp_dir: str = field(default='tmp')
-    install_dependency: bool = field(default=True)
-    max_threads: int = field(default=30)
-
-
-@dataclass
-class Chain:
-    network: str
-    genesis: str = field(default='')
-    sync_mode: str = field(default='fast')
-    log_level: int = field(default=4)
-    debug: bool = field(default=True)
-    append_cmd: str = field(default='')
-
-
-@dataclass
 class Config:
-    deploy: Deploy
-    chain: Chain
+    platon: str
+    network: str
+    genesis_file: str = ''
+    keystore_dir: str = ''
+    deploy_dir: str = 'platon'
+    local_tmp_dir: str = 'tmp'
+    install_dependency: bool = True
+    max_threads: int = 30
+    sync_mode: str = 'fast'
+    log_level: int = 4
+    debug: bool = True
+    append_cmd: str = ''
+    static_node: List[str] = field(default_factory=[])
 
     def to_dict(self):
         return asdict(self)
@@ -36,12 +27,12 @@ class Config:
 
 @dataclass
 class Base:
-    username: str = field(default=None)
-    password: str = field(default=None)
-    ssh_port: int = field(default=None)
-    p2p_port: int = field(default=None)
-    rpc_port: int = field(default=None)
-    ws_port: int = field(default=None)
+    username: str = None
+    password: str = None
+    ssh_port: int = 22
+    p2p_port: int = None
+    rpc_port: int = None
+    ws_port: int = None
 
     def _fill_common_info(self, node):
         info_dict = asdict(self)
@@ -57,11 +48,11 @@ class Base:
 
 @dataclass
 class Node(Base):
-    host: str = field(default=None)
-    node_id: str = field(default=None)
-    node_key: str = field(default=None)
-    bls_pubkey: str = field(default=None)
-    bls_prikey: str = field(default=None)
+    host: str = None
+    node_id: str = None
+    node_key: str = None
+    bls_pubkey: str = None
+    bls_prikey: str = None
 
     def __post_init__(self):
         self._fill_node_info()
@@ -79,7 +70,7 @@ class Node(Base):
 
 @dataclass
 class NodeGroup(Base):
-    members: List[Node] = field(default=None)
+    members: List[Node] = field(default_factory=[])
 
     def __post_init__(self):
         for member in self.members:
@@ -88,8 +79,8 @@ class NodeGroup(Base):
 
 @dataclass
 class Nodes(Base):
-    init: NodeGroup = field(default=None)
-    normal: NodeGroup = field(default=None)
+    init: NodeGroup = None
+    normal: NodeGroup = None
 
     def __post_init__(self):
         members = self.init.members + self.normal.members
@@ -119,8 +110,13 @@ def to_file(self, file):
 
 
 if __name__ == "__main__":
-    from common.load_file import LoadFile
-    config_data = LoadFile('file/config_template.yml').get_data()
-    print(f'json = {config_data}')
-    config = create_config(config_data)
-    print(f'all = {config.to_dict()}')
+    import yaml
+    file = 'file/config_template.yml'
+    with open(file, encoding='utf-8') as f:
+        data = yaml.load(f)
+    config_dict = data.get('config')
+    config = create_config(config_dict)
+    print(f'config = {config.to_dict()}')
+    nodes_dict = data.get('nodes')
+    nodes = create_nodes(nodes_dict)
+    print(f'nodes = {nodes.to_dict()}')

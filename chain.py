@@ -1,15 +1,11 @@
 import json
 import os
-import time
 import shutil
 import tarfile
-
 from ruamel import yaml
 from typing import List
-
-# import genesis
-# from funcs.load_file import LoadFile, calc_hash
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+
 from config import Config, Nodes
 from host import Host
 from node import Node
@@ -18,19 +14,19 @@ from node import Node
 class Chain:
     def __init__(self, config: Config, nodes: Nodes):
         self.config = config
-        if not os.path.exists(self.config.deploy.local_tmp_dir):
-            os.mkdir(self.config.deploy.local_tmp_dir)
+        # make local tmp dir
+        if not os.path.exists(self.config.local_tmp_dir):
+            os.mkdir(self.config.local_tmp_dir)
         # generate node obj
         self.init_nodes = self.__gen_node_obj(nodes.init.members)
         self.normal_nodes = self.__gen_node_obj(nodes.normal.members)
         self.nodes = self.init_nodes + self.normal_nodes
         # generate host obj
-        self.hosts = self.__gen_host_obj()
+        self.hosts = self.__gen_host_obj(nodes)
         # fill genesis file
         self.init_chain = False
-
-        if self.ciself.config.chain.genesis:
-            self.init_chain = True
+        if self.config.network is 'private':
+            assert self.config.genesis
             self.__fill_genesis_file()
 
         # 生成环境唯一标识
@@ -73,10 +69,10 @@ class Chain:
         self.__compression_files()
 
     def install_dependency(self):
-        if self.init_dependency:
+        if self.config.install_dependency:
             self.__install_supervisor_all()
             self.__install_dependency_all()
-            self.init_dependency = False
+            self.config.install_dependency = False
 
     def upload_files(self, nodes: List[Node] = None):
         """ Upload all files
@@ -199,17 +195,15 @@ class Chain:
 
         return self.executor(install, self.hosts)
 
-    def __gen_host_obj(self) -> List[Host]:
+    def __gen_host_obj(self, nodes: List[Node]) -> List[Host]:
         """ Instantiate all Hosts
         """
-        hosts, hosts_info, done = [], [], []
-        for node_info in self.__nodes_info:
-            if node_info['host'] in done:
+        hosts, done = [], []
+        for node in nodes:
+            if node.host in done:
                 continue
-            hosts_info.append(node_info)
-            done.append(node_info['host'])
-        for host_info in hosts_info:
-            hosts.append(Host(host_info))
+            done.append(node.host)
+            hosts.append(Host(self.config, ))
         return hosts
 
     def __fill_static_file(self):
@@ -265,14 +259,12 @@ class Chain:
     #     logger.info("Delete cache complete")
     #     return os.path.basename(tar_name)
 
-
-
-    def __gen_node_obj(self, nodes_info: list):
+    def __gen_node_obj(self, nodes_info: List[Node]):
         """ Instantiate all nodes to class 'Node'
         """
         nodes = []
         for node_info in nodes_info:
-            nodes.append(Node(node_info, self.chain_id))
+            nodes.append(Node(self.config, node_info))
         return nodes
 
     def __fill_genesis_file(self):

@@ -2,29 +2,25 @@ import os
 from functools import wraps
 from loguru import logger
 
-from funcs.connect import connect_linux
-from tools.platon_deploy import config
-from tools.platon_deploy.util import run_ssh
+from config import Config, Node as NodeInfo
 
-from config import Node as NodeInfo, Config
-
-failed_msg = r'node-{} do {} failed:{}'
-success_msg = r'node-{} do {} success'
+failed_msg = r'p{} do {} failed:{}'
+success_msg = r'p{} do {} success'
 
 class Node:
     def __init__(self, config: Config, node_info: NodeInfo):
         # TODO: fill node info
-        self.host = node_info['host']
-        self.username = node_info["username"]
-        self.password = info["password"]
-        self.ssh_port = info.get("ssh_port", 22)
-        self.p2p_port = info["p2p_port"]
-        self.rpc_port = info.get("rpc_port")
-        self.ws_port = info.get("ws_port")
-        self.node_id = info["node_id"]
-        self.node_key = info["node_key"]
-        self.bls_pubkey = info["bls_pubkey"]
-        self.bls_prikey = info["bls_prikey"]
+        self.host = node_info.host
+        self.username = node_info.username
+        self.password = node_info.password
+        self.ssh_port = node_info.ssh_port
+        self.p2p_port = node_info.p2p_port
+        self.rpc_port = node_info.rpc_port
+        self.ws_port = node_info.ws_port
+        self.node_id = node_info.node_id
+        self.node_key = node_info.node_key
+        self.bls_pubkey = node_info.bls_pubkey
+        self.bls_prikey = node_info.bls_prikey
         self.node_name = f'p{self.p2p_port}'
         self.node_site = f'{self.host}:{self.p2p_port}'
         # remote deploy info
