@@ -1,0 +1,18 @@
+# MATCH
+**/*cache*
+**/*debug*
+**/*report*
+**/*log*
+**/*venv*
+**/.*
+!.gitignore
+
+# OTHER
+**/*.py[cod]
+**/*.so
+**/*.egg
+**/*.egg-info
+**/*.code-workspace
+**/*.bak
+
+
