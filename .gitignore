@@ -4,7 +4,7 @@
 **/*report*
 **/*log*
 **/*venv*
-**/.*
+**/.**
 !.gitignore
 
 # OTHER
