@@ -362,9 +362,9 @@ class Node:
         """ upload or copy the base file
         """
         ls = self.run_ssh(f'cd {config.REMOTE_RESOURCE_TMP_DIR}; ls')
-        if self.cfg.env_id and (self.cfg.env_id + ".tar.gz\n") in ls:
+        if self.cfg.res_id and (self.cfg.res_id + ".tar.gz\n") in ls:
             logger.debug("{}-copy bin...".format(self.node_dir))
-            cmd = "cp -r {}/{}/* {}".format(config.REMOTE_RESOURCE_TMP_DIR, self.cfg.env_id,
+            cmd = "cp -r {}/{}/* {}".format(config.REMOTE_RESOURCE_TMP_DIR, self.cfg.res_id,
                                             self.node_dir)
             self.run_ssh(cmd)
             self.run_ssh("chmod +x {};mkdir {}".format(self.bin_file, self.log_dir))

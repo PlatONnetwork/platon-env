@@ -19,17 +19,22 @@ class Config:
     log_level: int = 4
     debug: bool = True
     append_cmd: str = ''
-    static_node: List[str] = field(default_factory=[])
+    static_nodes: List[str] = field(default_factory=[])
 
     def to_dict(self):
         return asdict(self)
 
 
 @dataclass
-class Base:
+class Host:
+    host: str = None
     username: str = None
     password: str = None
     ssh_port: int = 22
+
+
+@dataclass
+class CommonInfo(Host):
     p2p_port: int = None
     rpc_port: int = None
     ws_port: int = None
@@ -45,10 +50,8 @@ class Base:
     def to_dict(self):
         return asdict(self)
 
-
 @dataclass
-class Node(Base):
-    host: str = None
+class Node(CommonInfo):
     node_id: str = None
     node_key: str = None
     bls_pubkey: str = None
@@ -69,7 +72,7 @@ class Node(Base):
 
 
 @dataclass
-class NodeGroup(Base):
+class NodeGroup(CommonInfo):
     members: List[Node] = field(default_factory=[])
 
     def __post_init__(self):
@@ -78,7 +81,7 @@ class NodeGroup(Base):
 
 
 @dataclass
-class Nodes(Base):
+class Nodes(CommonInfo):
     init: NodeGroup = None
     normal: NodeGroup = None
 

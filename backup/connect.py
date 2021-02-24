@@ -8,9 +8,6 @@ def connect_web3(url, chain_id=100):
     """
     Connect to the web3 service, add block query middleware,
     use to implement eth_getBlockByHash, eth_getBlockByNumber, etc.
-    :param url:
-    :param chain_id:
-    :return:
     """
     if 'ws' in url:
         w3 = Web3(WebsocketProvider(url), chain_id=chain_id)
@@ -21,14 +18,14 @@ def connect_web3(url, chain_id=100):
     return w3
 
 
-def connect_web3(url, chain_id=100, timeout=20, poll_latency=0.2):
-    with Timeout(timeout) as _timeout:
-        while True:
-            web3 = connect_web3(url, chain_id)
-            if web3.isConnected():
-                break
-            _timeout.sleep(poll_latency)
-    return web3
+# def connect_web3(url, chain_id=100, timeout=20, poll_latency=0.2):
+#     with Timeout(timeout) as _timeout:
+#         while True:
+#             web3 = connect_web3(url, chain_id)
+#             if web3.isConnected():
+#                 break
+#             _timeout.sleep(poll_latency)
+#     return web3
 
 
 def ssh_connect(ip, username='root', password='', port=22):

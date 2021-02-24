@@ -6,7 +6,7 @@ from ruamel import yaml
 from typing import List
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
-from config import Config, Nodes
+from config import Config, Nodes, Node as NodeInfo, create_config, create_nodes
 from host import Host
 from node import Node
 
@@ -22,15 +22,8 @@ class Chain:
         self.normal_nodes = self.__gen_node_obj(nodes.normal.members)
         self.nodes = self.init_nodes + self.normal_nodes
         # generate host obj
-        self.hosts = self.__gen_host_obj(nodes)
-        # fill genesis file
-        self.init_chain = False
-        if self.config.network is 'private':
-            assert self.config.genesis
-            self.__fill_genesis_file()
-
-        # 生成环境唯一标识
-        self.env_id = self.__gen_env_id()
+        all_nodes = nodes.init.members + nodes.normal.members
+        self.hosts = self.__gen_host_obj(all_nodes)
 
     def is_running(self, nodes: List[Node]) -> bool:
         """ Check the running status of the nodes.
@@ -163,8 +156,7 @@ class Chain:
         return self.executor(close, nodes)
 
     def __put_files_all(self):
-        """
-        Upload compressed file
+        """ Upload compressed file
         """
         logger.info("upload compression")
 
@@ -174,8 +166,7 @@ class Chain:
         return self.executor(uploads, self.hosts)
 
     def __install_dependency_all(self):
-        """
-        Installation dependence
+        """ Installation dependence
         """
         logger.info("install rely")
 
@@ -185,8 +176,7 @@ class Chain:
         return self.executor(install, self.hosts)
 
     def __install_supervisor_all(self):
-        """
-        Install supervisor
+        """ Install supervisor
         """
         logger.info("install supervisor")
 
@@ -195,69 +185,42 @@ class Chain:
 
         return self.executor(install, self.hosts)
 
-    def __gen_host_obj(self, nodes: List[Node]) -> List[Host]:
+    def __gen_host_obj(self, nodes_info: List[NodeInfo]) -> List[Host]:
         """ Instantiate all Hosts
         """
         hosts, done = [], []
-        for node in nodes:
-            if node.host in done:
+        for node_info in nodes_info:
+            if node_info.host in done:
                 continue
-            done.append(node.host)
-            hosts.append(Host(self.config, ))
+            done.append(node_info.host)
+            hosts.append(Host(node_info))
         return hosts
 
     def __fill_static_file(self):
+        """ Rewrite static
         """
-        Rewrite static
-        """
-        logger.info("rewrite static-nodes.json")
-        static_nodes = self.__gen_static_nodes()
-        with open(config.TMP_STATIC_FILE, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(static_nodes, indent=4))
+        if not self.config.static_nodes:
+            self.config.static_nodes = self.__gen_static_nodes()
+        tmp_file = os.path.join(self.config.local_tmp_dir, 'static-nodes.json')
+        with open(tmp_file, 'w', encoding='utf-8') as f:
+            f.write(json.dumps(self.config.static_nodes, indent=4))
 
     def __compression_files(self):
         """ Compressed file
         """
-        env_gz = os.path.join(config.TMP_DIR, self.env_id)
+        env_gz = os.path.join(self.config.local_tmp_dir, self.res_id)
         if os.path.exists(env_gz):
             return
         os.makedirs(env_gz)
         data_dir = os.path.join(env_gz, "data")
         os.makedirs(data_dir)
-        keystore_dir = os.path.join(data_dir, "keystore")
-        os.makedirs(keystore_dir)
-        shutil.copy(config.KEYSTORE_DIR, keystore_dir)
-        shutil.copyfile(config.BIN_FILE, os.path.join(env_gz, "platon"))
+        keystore_tmp = os.path.join(data_dir, "keystore")
+        os.makedirs(keystore_tmp)
+        shutil.copy(self.config.keystore_dir, keystore_tmp)
+        shutil.copyfile(self.config.platon, os.path.join(env_gz, "platon"))
         t = tarfile.open(env_gz + ".tar.gz", "w:gz")
         t.add(env_gz, arcname=os.path.basename(env_gz))
         t.close()
-
-    def download_log(self, mark, nodes: List[Node] = None):
-        """ Download log
-        """
-        # self.__check_log_path()
-        if nodes is None:
-            nodes = self.nodes
-
-        def download(node: Node):
-            return node.download_log()
-
-        self.executor(download, nodes)
-        return self.__zip_all_log(mark)
-
-    # TODO: delete
-    # def __zip_all_log(self, mark):
-    #     logger.info("Start compressing.....")
-    #     t = time.strftime("%Y%m%d%H%M%S", time.localtime())
-    #     tar_name = "{}/{}_{}.tar.gz".format(self.config.NODE_LOG_DIR, mark, t)
-    #     tar = tarfile.open(tar_name, "w:gz")
-    #     tar.add(config.tmp_log, arcname=os.path.basename(self.cfg.NODE_LOG_DIR))
-    #     tar.close()
-    #     logger.info("Compression completed")
-    #     logger.info("Start deleting the cache.....")
-    #     shutil.rmtree(self.cfg.tmp_log)
-    #     logger.info("Delete cache complete")
-    #     return os.path.basename(tar_name)
 
     def __gen_node_obj(self, nodes_info: List[Node]):
         """ Instantiate all nodes to class 'Node'
@@ -270,21 +233,26 @@ class Chain:
     def __fill_genesis_file(self):
         """ Rewrite genesis
         """
+        if self.config.network is 'private':
+            if not self.config.genesis_file:
+                raise FileNotFoundError('genesis template file not found!')
         with open(self.config.genesis_file, mode='r', encoding='utf-8') as f:
-            self.genesis = genesis.genesis_factory(json.load(f))
-        nodes = self.genesis.config.cbft.initialNodes
-        genesis_nodes = self.__gen_genesis_nodes()
-        if bool(nodes) == bool(genesis_nodes):
+            genesis_dict = json.load(f)
+        init_nodes = genesis_dict['config']['cbft']['initialNodes']
+        genesis_nodes = self.__gen_genesis_nodes(self.init_nodes)
+        # TODO: 补充异常提示
+        if bool(init_nodes) == bool(genesis_nodes):
             raise Exception('The init node already exist in the genesis file, but it is different from the chain file.')
-        self.genesis.config.cbft.initialNodes = genesis_nodes
-        with open(self.config.tmp_genesis_file, mode='w', encoding='utf-8') as f:
-            f.write(json.dumps(self.genesis.to_dict(), indent=4))
+        genesis_dict['config']['cbft']['initialNodes'] = genesis_nodes
+        tmp_file = os.path.join(self.config.local_tmp_dir, 'genesis.json')
+        with open(tmp_file, mode='w', encoding='utf-8') as f:
+            f.write(json.dumps(genesis_dict, indent=4))
 
-    def __gen_genesis_nodes(self) -> List[dict]:
+    def __gen_genesis_nodes(self, nodes: List[Node]) -> List[dict]:
         """ genesis the genesis node list
         """
         genesis_nodes = []
-        for node in self.init_nodes:
+        for node in nodes:
             genesis_nodes.append({"node": node.enode, "blsPubKey": node.bls_pubkey})
         return genesis_nodes
 
@@ -296,27 +264,24 @@ class Chain:
             static_nodes.append(node.enode)
         return static_nodes
 
-    def __gen_env_id(self) -> str:
-        """
-        Determine whether you need to re-create a new environment
-        based on the platon binary information and the node configuration file.
-        :return: env_id
-        """
-        env_tmp_file = os.path.join(self.cfg.env_tmp, "env.yml")
-        if os.path.exists(self.cfg.env_tmp):
-            if os.path.exists(env_tmp_file):
-                env_data = LoadFile(env_tmp_file).get_data()
-                if env_data["bin_hash"] == calc_hash(self.cfg.bin_file) \
-                        and env_data["node_hash"] == calc_hash(self.cfg.node_file):
-                    return env_data["env_id"]
-            shutil.rmtree(self.cfg.env_tmp)
-        os.makedirs(self.cfg.env_tmp)
-        new_env_data = {"bin_hash": calc_hash(self.cfg.bin_file), "node_hash": calc_hash(self.cfg.node_file)}
-        env_id = new_env_data["bin_hash"] + new_env_data["node_hash"]
-        new_env_data["env_id"] = env_id
-        with open(env_tmp_file, "w", encoding="utf-8") as f:
-            yaml.dump(new_env_data, f, Dumper=yaml.RoundTripDumper)
-        return env_id
+    # def __gen_env_id(self) -> str:
+    #     """
+    #     """
+    #     env_tmp_file = os.path.join(self.cfg.env_tmp, "env.yml")
+    #     if os.path.exists(self.cfg.env_tmp):
+    #         if os.path.exists(env_tmp_file):
+    #             env_data = LoadFile(env_tmp_file).get_data()
+    #             if env_data["bin_hash"] == calc_hash(self.cfg.bin_file) \
+    #                     and env_data["node_hash"] == calc_hash(self.cfg.node_file):
+    #                 return env_data["env_id"]
+    #         shutil.rmtree(self.cfg.env_tmp)
+    #     os.makedirs(self.cfg.env_tmp)
+    #     new_env_data = {"bin_hash": calc_hash(self.cfg.bin_file), "node_hash": calc_hash(self.cfg.node_file)}
+    #     env_id = new_env_data["bin_hash"] + new_env_data["node_hash"]
+    #     new_env_data["env_id"] = env_id
+    #     with open(env_tmp_file, "w", encoding="utf-8") as f:
+    #         yaml.dump(new_env_data, f, Dumper=yaml.RoundTripDumper)
+    #     return env_id
 
     # def __check_log_path(self):
     #     if not os.path.exists(self.cfg.tmp_log):
@@ -328,7 +293,7 @@ class Chain:
     #         os.mkdir(self.cfg.bug_log)
 
     def executor(self, func, objs, *args) -> bool:
-        with ThreadPoolExecutor(max_workers=config.MAX_THREADS) as exe:
+        with ThreadPoolExecutor(max_workers=self.config.max_threads) as exe:
             futures = [exe.submit(func, pair, *args) for pair in objs]
             done, unfinished = wait(futures, timeout=30, return_when=ALL_COMPLETED)
         result = []
@@ -357,5 +322,16 @@ class Chain:
 from loguru import logger
 
 if __name__ == "main":
-    pass
-    # logger.
+    import yaml
+    file = 'file/config_template.yml'
+    with open(file, encoding='utf-8') as f:
+        data = yaml.load(f)
+    config_dict = data.get('config')
+    config = create_config(config_dict)
+    print(f'config = {config.to_dict()}')
+    nodes_dict = data.get('nodes')
+    nodes = create_nodes(nodes_dict)
+    print(f'nodes = {nodes.to_dict()}')
+
+    chain = Chain(config, nodes)
+    print(f'chain = {chain.__dict__}')

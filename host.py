@@ -1,21 +1,32 @@
 import os
 import configparser
 from functools import wraps
-from funcs.connect import connect_linux
-from tools.platon_deploy import config
-from tools.platon_deploy.util import run_ssh
+
+import paramiko
+
+from config import Host as HostInfo
 
 failed_msg = r'Host {} do {} failed:{}'
 success_msg = r'Host {} do {} success'
 
+def ssh_connect(ip, username='root', password='', port=22):
+    """
+    """
+    t = paramiko.Transport((ip, port))
+    t.connect(username=username, password=password)
+    ssh = paramiko.SSHClient()
+    ssh._transport = t
+    sftp = paramiko.SFTPClient.from_transport(t)
+    return ssh, sftp, t
+
 
 class Host:
-    def __init__(self, host_info):
-        self.host = host_info['host']
-        self.username = host_info['username']
-        self.password = host_info['password']
-        self.port = host_info.get('sshport', 22)
-        self.ssh, self.sftp, self.t = connect_linux(self.host, self.username, self.password, self.port)
+    def __init__(self, host_info: HostInfo):
+        self.host = host_info.host
+        self.username = host_info.username
+        self.password = host_info.password
+        self.ssh_port = host_info.ssh_port
+        self.ssh, self.sftp, self.t = connect_linux(self.host, self.username, self.password, self.ssh_port)
         self.remote_supervisor_conf = os.path.abspath(os.path.join(config.REMOTE_SUPERVISOR_TMP_DIR, 'supervisord.conf'))
 
     def run_ssh(self, cmd, password=None):
