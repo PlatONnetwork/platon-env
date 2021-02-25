@@ -50,14 +50,14 @@ class Host:
 
     def upload_file(self, file_path, remote_path):
         local_hash = file_hash(file_path)
-        remote_hash = self.run_ssh(f'rm {remote_path} && mkdir -p {remote_path}')
+        remote_hash = self.run_ssh(f'')
         if local_hash is remote_hash:
             return
         self.run_ssh(f'rm {remote_path} && mkdir -p {remote_path}')
         self.sftp.put(file_path, remote_path)
 
-    def __upload_files(self):
-        pass
+    def __upload_remote_tmp(self):
+        self.upload_file(self.config.platon, self.config.remote_tmp_dir)
 
 
     @_try_do

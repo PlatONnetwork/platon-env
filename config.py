@@ -112,18 +112,3 @@ def to_file(self, file):
     with open(file, "w") as f:
         f.write(json.dumps(data, indent=4))
 
-
-if __name__ == "__main__":
-    import yaml
-    file = 'file/config_template.yml'
-    with open(file, encoding='utf-8') as f:
-        data = yaml.load(f)
-    config_dict = data.get('config')
-    print(f'config_dict = {config_dict}')
-    config = create_config(config_dict)
-    print(f'config = {config.to_dict()}')
-
-    nodes_dict = data.get('nodes')
-    print(f'nodes_dict = {nodes_dict}')
-    nodes = create_nodes(nodes_dict)
-    print(f'nodes = {nodes.to_dict()}')
