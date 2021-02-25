@@ -1,4 +1,5 @@
 import os
+import hashlib
 
 
 def check_file_exists(*args):
@@ -11,8 +12,9 @@ def check_file_exists(*args):
             raise Exception("file:{} does not exist".format(arg))
 
 
-def run_ssh(ssh, cmd, password=None):
-    stdin, stdout, _ = ssh.exec_command(rf'source /etc/profile; {cmd}')
-    if password:
-        stdin.write(password + '\n')
-    return stdout.readlines()
+def file_hash(file):
+    with open(file, 'rb') as f:
+        sha1obj = hashlib.sha1()
+        sha1obj.update(f.read())
+        result_hash = sha1obj.hexdigest()
+        return result_hash

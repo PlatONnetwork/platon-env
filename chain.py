@@ -3,6 +3,7 @@ import os
 import shutil
 import tarfile
 from ruamel import yaml
+from loguru import logger
 from typing import List
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
@@ -12,7 +13,7 @@ from node import Node
 
 
 class Chain:
-    def __init__(self, config: Config, nodes: Nodes):
+    def __init__(self, nodes: Nodes, config: Config):
         self.config = config
         # make local tmp dir
         if not os.path.exists(self.config.local_tmp_dir):
@@ -161,7 +162,7 @@ class Chain:
         logger.info("upload compression")
 
         def uploads(host: Host):
-            return host.upload_files()
+            return host.upload_file()
 
         return self.executor(uploads, self.hosts)
 
@@ -319,9 +320,7 @@ class Chain:
 #         cfg.account_file = account_file
 #     return Controller(cfg)
 
-from loguru import logger
-
-if __name__ == "main":
+if __name__ == "__main__":
     import yaml
     file = 'file/config_template.yml'
     with open(file, encoding='utf-8') as f:
@@ -335,3 +334,4 @@ if __name__ == "main":
 
     chain = Chain(config, nodes)
     print(f'chain = {chain.__dict__}')
+

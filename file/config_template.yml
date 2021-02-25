@@ -11,7 +11,7 @@ config:
   log_level: 5
   debug: true
   append_cmd: ''
-  static_node:
+  static_nodes:
     - 'test'
     - 'test'
 nodes:

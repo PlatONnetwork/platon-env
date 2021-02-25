@@ -1,58 +1,61 @@
 import os
 import configparser
-from functools import wraps
-
 import paramiko
+from functools import wraps
+from config import Host as HostInfo, Config
+from util import file_hash
 
-from config import Host as HostInfo
 
 failed_msg = r'Host {} do {} failed:{}'
 success_msg = r'Host {} do {} success'
 
-def ssh_connect(ip, username='root', password='', port=22):
-    """
-    """
-    t = paramiko.Transport((ip, port))
-    t.connect(username=username, password=password)
+
+def _try_do(func, *args, **kwargs):
+    @wraps(func)
+    def wrap_func(self, *args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            return False, failed_msg.format(self.host, func.__name__, e)
+        return True, success_msg.format(self.host, func.__name__)
+    return wrap_func
+
+
+def connect(ip, username='root', password='', port=22):
+    transport = paramiko.Transport((ip, port))
+    transport.connect(username=username, password=password)
     ssh = paramiko.SSHClient()
-    ssh._transport = t
-    sftp = paramiko.SFTPClient.from_transport(t)
-    return ssh, sftp, t
+    ssh._transport = transport
+    sftp = paramiko.SFTPClient.from_transport(transport)
+    return ssh, sftp
 
 
 class Host:
-    def __init__(self, host_info: HostInfo):
+    def __init__(self, host_info: HostInfo, config: Config):
         self.host = host_info.host
         self.username = host_info.username
         self.password = host_info.password
         self.ssh_port = host_info.ssh_port
-        self.ssh, self.sftp, self.t = connect_linux(self.host, self.username, self.password, self.ssh_port)
-        self.remote_supervisor_conf = os.path.abspath(os.path.join(config.REMOTE_SUPERVISOR_TMP_DIR, 'supervisord.conf'))
+        self.config = config
+        self.ssh, self.sftp = connect(self.host, self.username, self.password, self.ssh_port)
+        self.remote_supervisor_conf = os.path.abspath(os.path.join(self.config.remote_tmp_dir, 'supervisord.conf'))
+
 
     def run_ssh(self, cmd, password=None):
-            return run_ssh(self.ssh, cmd, password)
+        # TODO: 支持多次输入密码
+        stdin, stdout, _ = self.ssh.exec_command(cmd)
+        if password:
+            stdin.write(password + '\n')
+        stdouts = stdout.readlines()
+        return stdouts
 
-    def _try_do(self, func, *args, **kwargs):
-        @wraps(func)
-        def wrap_func(*args, **kwargs):
-            try:
-                func(*args, **kwargs)
-            except Exception as e:
-                return False, failed_msg.format(self.host, func.__name__, e)
-            return True, success_msg.format(self.host, func.__name__)
-        return wrap_func
-
-    @_try_do
-    def upload_files(self, res_hash):
-        ls = self.run_ssh(f'cd {config.REMOTE_RESOURCE_TMP_DIR}; ls')
-        file_name = res_hash + '.tar.gz'
-        local_path = os.path.join(config.TMP_DIR, file_name)
-        remote_path = os.path.join(config.REMOTE_RESOURCE_TMP_DIR, file_name)
-        if (file_name + '\n') in ls:
-            return True, 'files is existed, need not upload.'
-        self.run_ssh(f'rm -rf {config.REMOTE_RESOURCE_TMP_DIR}; mkdir -p {config.REMOTE_RESOURCE_TMP_DIR}')
-        self.sftp.put(local_path, remote_path)
-        self.run_ssh(f'tar -xzvf {remote_path} -C {config.REMOTE_RESOURCE_TMP_DIR}')
+    def upload_file(self, file_path, remote_path):
+        local_hash = file_hash(file_path)
+        remote_hash = self.run_ssh(f'rm {remote_path} && mkdir -p {remote_path}')
+        if local_hash is remote_hash:
+            return
+        self.run_ssh(f'rm {remote_path} && mkdir -p {remote_path}')
+        self.sftp.put(file_path, remote_path)
 
     @_try_do
     def install_dependency(self):
