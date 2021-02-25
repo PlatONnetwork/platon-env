@@ -29,7 +29,7 @@ class Node:
         if os.path.isabs(self.config.deploy_dir):
             self.node_dir = os.path.join(self.config.deploy_dir, self.node_name)
         else:
-            self.node_dir = os.path.join(os.path.join(self.pwd, self.config.deploy_dir), self.node_name)
+            self.node_dir = os.path.join(os.path.join(self.password, self.config.deploy_dir), self.node_name)
         self.log_dir = os.path.join(self.node_dir, 'log')
         self.bin_file = os.path.join(self.node_dir, 'platon')
         self.genesis_file = os.path.join(self.node_dir, 'genesis.json')

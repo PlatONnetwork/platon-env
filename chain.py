@@ -194,7 +194,7 @@ class Chain:
             if node_info.host in done:
                 continue
             done.append(node_info.host)
-            hosts.append(Host(node_info))
+            hosts.append(Host(node_info, self.config))
         return hosts
 
     def __fill_static_file(self):
@@ -228,7 +228,7 @@ class Chain:
         """
         nodes = []
         for node_info in nodes_info:
-            nodes.append(Node(self.config, node_info))
+            nodes.append(Node(node_info, self.config, ))
         return nodes
 
     def __fill_genesis_file(self):
@@ -319,19 +319,3 @@ class Chain:
 #     if account_file:
 #         cfg.account_file = account_file
 #     return Controller(cfg)
-
-if __name__ == "__main__":
-    import yaml
-    file = 'file/config_template.yml'
-    with open(file, encoding='utf-8') as f:
-        data = yaml.load(f)
-    config_dict = data.get('config')
-    config = create_config(config_dict)
-    print(f'config = {config.to_dict()}')
-    nodes_dict = data.get('nodes')
-    nodes = create_nodes(nodes_dict)
-    print(f'nodes = {nodes.to_dict()}')
-
-    chain = Chain(config, nodes)
-    print(f'chain = {chain.__dict__}')
-

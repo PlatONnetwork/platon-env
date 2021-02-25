@@ -5,7 +5,6 @@ from functools import wraps
 from config import Host as HostInfo, Config
 from util import file_hash
 
-
 failed_msg = r'Host {} do {} failed:{}'
 success_msg = r'Host {} do {} success'
 
@@ -18,6 +17,7 @@ def _try_do(func, *args, **kwargs):
         except Exception as e:
             return False, failed_msg.format(self.host, func.__name__, e)
         return True, success_msg.format(self.host, func.__name__)
+
     return wrap_func
 
 
@@ -40,7 +40,6 @@ class Host:
         self.ssh, self.sftp = connect(self.host, self.username, self.password, self.ssh_port)
         self.remote_supervisor_conf = os.path.abspath(os.path.join(self.config.remote_tmp_dir, 'supervisord.conf'))
 
-
     def run_ssh(self, cmd, password=None):
         # TODO: 支持多次输入密码
         stdin, stdout, _ = self.ssh.exec_command(cmd)
@@ -56,6 +55,10 @@ class Host:
             return
         self.run_ssh(f'rm {remote_path} && mkdir -p {remote_path}')
         self.sftp.put(file_path, remote_path)
+
+    def __upload_files(self):
+        pass
+
 
     @_try_do
     def install_dependency(self):
@@ -98,7 +101,7 @@ class Host:
 
     def __rewrite_supervisor_conf(self, sup_tmp):
         cfg = configparser.ConfigParser()
-        cfg.read(self.cfg.supervisor_file)
+        cfg.read(self.config.d)
         cfg.set('inet_http_server', 'username', self.username)
         cfg.set('inet_http_server', 'password', self.password)
         cfg.set('supervisorctl', 'username', self.username)
