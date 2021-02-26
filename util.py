@@ -12,9 +12,8 @@ def check_file_exists(*args):
             raise Exception("file:{} does not exist".format(arg))
 
 
-def file_hash(file):
+def md5(file):
     with open(file, 'rb') as f:
-        sha1obj = hashlib.sha1()
-        sha1obj.update(f.read())
-        result_hash = sha1obj.hexdigest()
-        return result_hash
+        m5 = hashlib.md5()
+        m5.update(f.read())
+    return m5.hexdigest()
