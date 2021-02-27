@@ -69,16 +69,23 @@ class Host:
         """ 判断文件是否已存在于远端
         """
         local_md5 = md5(file_path)
+        if os.path.isdir():
+            remote_path = os.path.join(remote_path, '*')
         remote_md5 = self.run_ssh(f'md5sum {remote_path}')
         if local_md5 in str(remote_md5):
             platon_name = f'platon_{local_md5}'
 
-
-    def upload_platon(self):
+    def upload_platon(self, remote_path=None):
         """ 上传platon二进制文件到远程机器，会使用tmp进行缓存
         """
-        md5(self.config.)
-        self.upload_file(self.config.platon, self.config.remote_tmp_dir)
+        file_name = 'platon_' + md5(self.config.platon)
+        remote_tmp_path = os.path.join(self.config.remote_tmp_dir, file_name)
+        self.upload_file(self.config.platon, remote_tmp_path)
+        if remote_path:
+            if os.path.isdir(remote_path):
+                remote_path = os.path.join(remote_path, 'platon')
+        self.ssh(f'cp {remote_tmp_path} {remote_path}}')
+
 
     @_try_do
     def install_dependency(self):
