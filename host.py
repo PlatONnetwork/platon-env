@@ -2,20 +2,14 @@ import os
 import configparser
 import paramiko
 from functools import wraps
+
+from paramiko.ssh_exception import SSHException
+
 from config import Host as HostInfo, Config
 from util import md5
 
 failed_msg = r'Host {} do {} failed:{}'
 success_msg = r'Host {} do {} success'
-
-
-def connect(ip, username='root', password='', port=22):
-    transport = paramiko.Transport((ip, port))
-    transport.connect(username=username, password=password)
-    ssh = paramiko.SSHClient()
-    ssh._transport = transport
-    sftp = paramiko.SFTPClient.from_transport(transport)
-    return ssh, sftp
 
 
 def _try_do(func, *args, **kwargs):
@@ -27,6 +21,15 @@ def _try_do(func, *args, **kwargs):
             return False, failed_msg.format(self.host, func.__name__, e)
         return True, success_msg.format(self.host, func.__name__)
     return wrap_func
+
+
+def connect(ip, username='root', password='', port=22):
+    transport = paramiko.Transport((ip, port))
+    transport.connect(username=username, password=password)
+    ssh = paramiko.SSHClient()
+    ssh._transport = transport
+    sftp = paramiko.SFTPClient.from_transport(transport)
+    return ssh, sftp
 
 
 class Host:
@@ -44,48 +47,55 @@ class Host:
         if keys:
             for key in keys:
                 stdin.write(key + '\n')
-        if stderr:
-            raise Exception(f'exec command error: {stderr}')
+        errs = stderr.readlines()
+        if errs:
+            raise SSHException({errs})
         outs = stdout.readlines()
         return outs
 
-    def upload_file(self, file_path, remote_path):
-        local_hash = md5(file_path)
+    @property
+    def pwd(self):
+        stdouts = self.run_ssh('pwd')
+        return stdouts[0].strip('\r\n')
+
+    def upload_file(self, file, path):
+        local_hash = md5(file)
         remote_hash = self.run_ssh(f'')
         if local_hash is remote_hash:
             return
-        self.run_ssh(f'rm {remote_path} && mkdir -p {remote_path}')
-        self.sftp.put(file_path, remote_path)
+        self.run_ssh(f'rm {path} && mkdir -p {path}')
+        self.sftp.put(file, path)
 
-    def save_file(self, string, remote_file_path):
+    def save_file(self, content, file):
         """ 保存内容到远程文件
         """
-        path, file = os.path.split(remote_file_path)
+        path, file = os.path.split(file)
         if path:
             self.run_ssh(f'mkdir -p {path}')
-        self.run_ssh(f'echo "{string}" >> {remote_file_path}')
+        self.run_ssh(f'echo "{content}" >> {file}')
 
-    def file_exist(self, file_path, remote_path):
+    def file_exist(self, file, remote_file):
         """ 判断文件是否已存在于远端
         """
-        local_md5 = md5(file_path)
-        if os.path.isdir():
-            remote_path = os.path.join(remote_path, '*')
-        remote_md5 = self.run_ssh(f'md5sum {remote_path}')
+        if os.path.isdir(remote_file):
+            remote_file = os.path.join(remote_file, '*')
+        local_md5 = md5(file)
+        remote_md5 = self.run_ssh(f'md5sum {remote_file}')
         if local_md5 in str(remote_md5):
-            platon_name = f'platon_{local_md5}'
+            return True
+        return False
 
     def upload_platon(self, remote_path=None):
         """ 上传platon二进制文件到远程机器，会使用tmp进行缓存
         """
         file_name = 'platon_' + md5(self.config.platon)
-        remote_tmp_path = os.path.join(self.config.remote_tmp_dir, file_name)
-        self.upload_file(self.config.platon, remote_tmp_path)
+        tmp_path = os.path.join(self.config.remote_tmp_dir, file_name)
+        if not self.file_exist(self.config.platon, self.config.remote_tmp_dir):
+            self.upload_file(self.config.platon, tmp_path)
         if remote_path:
             if os.path.isdir(remote_path):
                 remote_path = os.path.join(remote_path, 'platon')
-        self.ssh(f'cp {remote_tmp_path} {remote_path}}')
-
+        self.run_ssh(f'cp {tmp_path} {remote_path}')
 
     @_try_do
     def install_dependency(self):
@@ -118,8 +128,3 @@ class Host:
 
     def clean_supervisorctl_cfg(self):
         self.run_ssh("sudo -S -p '' rm -rf /etc/supervisor/conf.d/n*", self.password)
-
-    @property
-    def pwd(self):
-        stdouts = self.run_ssh('pwd')
-        return stdouts[0].strip('\r\n')

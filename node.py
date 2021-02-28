@@ -9,6 +9,8 @@ failed_msg = r'p{} do {} failed:{}'
 success_msg = r'p{} do {} success'
 
 
+
+
 class Node(Host):
     def __init__(self, node_info: NodeInfo, config: Config):
         super().__init__(node_info, config)
@@ -22,86 +24,102 @@ class Node(Host):
         self.bls_prikey = node_info.bls_prikey
         self.node_name = f'p{self.p2p_port}'
         self.node_site = f'{self.host}:{self.p2p_port}'
-        self.enode = rf'enode://{self.node_id}@{self.host}:{self.p2p_port}'
         # remote deploy info
-        if os.path.isabs(self.config.deploy_dir):
-            self.node_dir = os.path.join(self.config.deploy_dir, self.node_name)
-        else:
-            self.node_dir = os.path.join(os.path.join(self.password, self.config.deploy_dir), self.node_name)
-        self.log_dir = os.path.join(self.node_dir, 'log')
-        self.bin_file = os.path.join(self.node_dir, 'platon')
-        self.genesis_file = os.path.join(self.node_dir, 'genesis.json')
-        self.config_file = os.path.join(self.node_dir, 'config.json')
-        self.data_dir = os.path.join(self.node_dir, 'data')
-        self.db_dir = os.path.join(self.data_dir, 'platon')
-        self.keystore_dir = os.path.join(self.db_dir, 'keystore')
-        self.nodekey_file = os.path.join(self.node_dir, 'nodekey')
-        self.blskey_file = os.path.join(self.node_dir, 'blskey')
-        self.static_file = os.path.join(self.node_dir, 'static-nodes.json')
-        self.supervisor_dir = os.path.join(self.node_dir, 'supervisor')
-        self.supervisor_file = os.path.join(self.supervisor_dir, self.node_name + '.conf')
+        if not os.path.isabs(self.config.deploy_dir):
+            self.config.deploy_dir = os.path.join(self.pwd, self.config.deploy_dir)
+        self.node_dir = os.path.join(self.config.deploy_dir, self.node_name)
         # node local tmp
         self.local_tmp_dir = os.path.join(self.config.local_tmp_dir, self.host + '_' + str(self.p2p_port))
+
+    @property
+    def enode(self):
+        return f'enode://{self.node_id}@{self.host}:{self.p2p_port}'
 
     @property
     def running(self) -> bool:
         return bool(self.run_ssh(f"ps -ef|grep platon|grep port|grep {self.p2p_port}|grep -v grep|awk {'print $2'}"))
 
-    # # TODO:delete
-    # def make_remote_dir(self):
-    #     self.run_ssh('mkdir -p {}'.format(self.node_dir))
-    #     self.run_ssh('mkdir -p {}/log'.format(self.node_dir))
-    #     self.run_ssh('mkdir -p {}'.format(self.data_dir))
-    #     self.run_ssh('mkdir -p {}'.format(self.keystore_dir))
+    # def deploy(self) -> tuple:
+    #     """
+    #     """
+    #     logger.debug("{}-clean node path...".format(self.node_site))
+    #     is_success, msg = self.remove()
+    #     if not is_success:
+    #         return is_success, msg
+    #     self.clean_log()
+    #     is_success, msg = self.upload_files(genesis_file)
+    #     if not is_success:
+    #         return is_success, msg
+    #     return self.start(self.cfg.init_chain)
     #
-    # # TODO:delete
-    # def make_local_dir(self):
-    #     if not os.path.exists(self.local_tmp_dir):
-    #         os.makedirs(self.local_tmp_dir)
-
-    def put_bin(self):
-        self.run_ssh("rm -rf {}".format(self.bin_file))
-        self.sftp.put(self.config.platon, self.node_dir)
-        self.run_ssh('chmod +x {}'.format(self.bin_file))
-
-    def put_nodekey(self):
-        """
-        upload nodekey
-        :return:
-        """
-        nodekey_file = os.path.join(self.local_tmp_dir, "nodekey")
-        with open(nodekey_file, 'w', encoding="utf-8") as f:
-            f.write(self.node_key)
-        self.run_ssh('mkdir -p {}'.format(self.data_dir))
-        self.sftp.put(nodekey_file, self.nodekey_file)
-
-    def put_blskey(self):
-        """
-        upload blskey
-        :return:
-        """
-        blskey_file = os.path.join(self.local_tmp_dir, "blskey")
-        with open(blskey_file, 'w', encoding="utf-8") as f:
-            f.write(self.bls_prikey)
-        self.run_ssh('mkdir -p {}'.format(self.data_dir))
-        self.sftp.put(blskey_file, self.blskey_file)
-
-    def put_genesis(self, genesis_file):
-        """
-        upload genesis
-        :param genesis_file:
-        :return:
-        """
-        self.run_ssh("rm -rf {}".format(self.genesis_file))
-        self.sftp.put(genesis_file, self.genesis_file)
-
-    def put_static(self):
-        """
-        upload static
-        :return:
-        """
-        self.sftp.put(config.TMP_STATIC_FILE, self.static_file)
-
+    # @_try_do
+    # def remove(self):
+    #     """
+    #     clear node data
+    #     :return:
+    #     """
+    #     self.stop()
+    #     self.run_ssh("sudo -S -p '' rm -rf {};mkdir -p {}".format(self.node_dir, self.node_dir), self.password)
+    #     self.run_ssh("ls {}".format(self.node_dir))
+    #
+    # # # TODO:delete
+    # # def make_remote_dir(self):
+    # #     self.run_ssh('mkdir -p {}'.format(self.node_dir))
+    # #     self.run_ssh('mkdir -p {}/log'.format(self.node_dir))
+    # #     self.run_ssh('mkdir -p {}'.format(self.data_dir))
+    # #     self.run_ssh('mkdir -p {}'.format(self.keystore_dir))
+    # #
+    # # # TODO:delete
+    # # def make_local_dir(self):
+    # #     if not os.path.exists(self.local_tmp_dir):
+    # #         os.makedirs(self.local_tmp_dir)
+    #
+    #
+    #
+    #
+    # def put_bin(self):
+    #     self.run_ssh("rm -rf {}".format(self.bin_file))
+    #     self.sftp.put(self.config.platon, self.node_dir)
+    #     self.run_ssh('chmod +x {}'.format(self.bin_file))
+    #
+    # def put_nodekey(self):
+    #     """
+    #     upload nodekey
+    #     :return:
+    #     """
+    #     nodekey_file = os.path.join(self.local_tmp_dir, "nodekey")
+    #     with open(nodekey_file, 'w', encoding="utf-8") as f:
+    #         f.write(self.node_key)
+    #     self.run_ssh('mkdir -p {}'.format(self.data_dir))
+    #     self.sftp.put(nodekey_file, self.nodekey_file)
+    #
+    # def put_blskey(self):
+    #     """
+    #     upload blskey
+    #     :return:
+    #     """
+    #     blskey_file = os.path.join(self.local_tmp_dir, "blskey")
+    #     with open(blskey_file, 'w', encoding="utf-8") as f:
+    #         f.write(self.bls_prikey)
+    #     self.run_ssh('mkdir -p {}'.format(self.data_dir))
+    #     self.sftp.put(blskey_file, self.blskey_file)
+    #
+    # def put_genesis(self, genesis_file):
+    #     """
+    #     upload genesis
+    #     :param genesis_file:
+    #     :return:
+    #     """
+    #     self.run_ssh("rm -rf {}".format(self.genesis_file))
+    #     self.sftp.put(genesis_file, self.genesis_file)
+    #
+    # def put_static(self):
+    #     """
+    #     upload static
+    #     :return:
+    #     """
+    #     self.sftp.put(config.TMP_STATIC_FILE, self.static_file)
+    #
     # def init(self):
     #     """
     #     Initialize
@@ -114,15 +132,7 @@ class Node(Host):
     #         raise Exception(rf'node {self.node_site} init failed: {result[0]}')
     #     logger.info(f'node-{self.node_site} init success')
     #
-    # @_try_do
-    # def clean(self):
-    #     """
-    #     clear node data
-    #     :return:
-    #     """
-    #     self.stop()
-    #     self.run_ssh("sudo -S -p '' rm -rf {};mkdir -p {}".format(self.node_dir, self.node_dir), self.password)
-    #     self.run_ssh("ls {}".format(self.node_dir))
+    #
     #
     # @_try_do
     # def clean_db(self):
@@ -208,7 +218,7 @@ class Node(Host):
     #     is_success = True
     #     msg = "close success"
     #     try:
-    #         self.clean()
+    #         self.remove()
     #         self.run_ssh("sudo -S -p '' rm -rf /etc/supervisor/conf.d/{}.conf".format(self.node_name), self.password)
     #     except Exception as e:
     #         is_success = False
@@ -217,7 +227,7 @@ class Node(Host):
     #         self.t.close()
     #         return is_success, msg
     #
-
+    #
     #
     # def create_keystore(self, password="88888888"):
     #     """
@@ -230,7 +240,7 @@ class Node(Host):
     #     stdin.write(str(password) + "\n")
     #     stdin.write(str(password) + "\n")
     #
-
+    #
     #
     # def put_config(self):
     #     """
@@ -240,7 +250,7 @@ class Node(Host):
     #     self.run_ssh("rm -rf {}".format(self.config_file))
     #     self.sftp.put(config.TMP_CONFIG_FILE, self.config_file)
     #
-
+    #
     #
     # def put_deploy_conf(self):
     #     """
@@ -301,27 +311,7 @@ class Node(Host):
     #         fp.write(supervisor_default_conf)
     #         fp.write("stdout_logfile={}/platon.log\n".format(self.log_dir))
     #
-    # def deploy(self, genesis_file) -> tuple:
-    #     """
-    #     deploy this node
-    #     1. Empty environmental data
-    #     2. According to the node server to determine whether it is necessary to upload files
-    #     3. Determine whether to initialize, choose to upload genesis
-    #     4. Upload the node key file
-    #     5. Upload the inter-node supervisor configuration
-    #     6. Start the node
-    #     :param genesis_file:
-    #     :return:
-    #     """
-    #     logger.debug("{}-clean node path...".format(self.node_site))
-    #     is_success, msg = self.clean()
-    #     if not is_success:
-    #         return is_success, msg
-    #     self.clean_log()
-    #     is_success, msg = self.upload_files(genesis_file)
-    #     if not is_success:
-    #         return is_success, msg
-    #     return self.start(self.cfg.init_chain)
+    #
     #
     # @_try_do
     # def upload_files(self, genesis_file):
@@ -350,14 +340,3 @@ class Node(Host):
     #     self.put_nodekey()
     #     self.put_deploy_conf()
     #     self.run_ssh("sudo -S -p '' supervisorctl update " + self.node_name, self.password)
-    #
-    # @_try_do
-    # def download_log(self):
-    #     """
-    #     download log
-    #     :return:
-    #     """
-    #     self.run_ssh("cd {};tar zcvf log.tar.gz ./log".format(self.node_dir))
-    #     self.sftp.get("{}/log.tar.gz".format(self.node_dir),
-    #                   "{}/{}_{}.tar.gz".format(self.cfg.tmp_log, self.host, self.p2p_port))
-    #     self.run_ssh("cd {};rm -rf ./log.tar.gz".format(self.node_dir))

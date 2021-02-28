@@ -120,7 +120,7 @@ class Chain:
             nodes = self.nodes
 
         def _clean(node: Node):
-            return node.clean()
+            return node.remove()
 
         return self.executor(_clean, nodes)
 
