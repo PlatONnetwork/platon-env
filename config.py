@@ -51,6 +51,7 @@ class NodeBaseInfo(HostInfo):
     def to_dict(self):
         return asdict(self)
 
+
 @dataclass
 class NodeInfo(NodeBaseInfo):
     node_id: str = None

@@ -20,14 +20,18 @@ def test_base_deploy():
     # logger.info(f'chain = {chain.__dict__}')
     chain.deploy(chain.nodes)
 
+
 def test_add_to_platon():
     pass
+
 
 def test_add_to_alaya():
     pass
 
+
 def test_deploy_private_chain():
     pass
+
 
 def test_add_to_private_chain():
     pass

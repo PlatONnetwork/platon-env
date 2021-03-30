@@ -27,7 +27,7 @@ class Node(Host):
         if os.path.isabs(self.config.deploy_dir):
             self.node_dir = os.path.join(self.config.deploy_dir, self.node_name)
         else:
-            self.node_dir = os.path.join(os.path.join(self.pwd, self.config.deploy_dir), self.node_name)
+            self.node_dir = os.path.join(os.path.join(self._pwd, self.config.deploy_dir), self.node_name)
         self.log_dir = os.path.join(self.node_dir, 'log')
         self.bin_file = os.path.join(self.node_dir, 'platon')
         self.genesis_file = os.path.join(self.node_dir, 'genesis.json')
@@ -274,7 +274,7 @@ class Node(Host):
         self.sftp.put(supervisor_tmp_file, self.supervisor_file)
         self.run_ssh("sudo -S -p '' cp {} /etc/supervisor/conf.d".format(self.supervisor_file), self.password)
 
-    def upload_file(self, local_file, remote_file):
+    def _upload_file(self, local_file, remote_file):
         if local_file and os.path.exists(local_file):
             self.sftp.put(local_file, remote_file)
         else:

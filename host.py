@@ -22,9 +22,6 @@ def _try_do(func, *args, **kwargs):
     return wrap_func
 
 
-def nodes_to_hosts():
-
-
 def connect(ip, username='root', password='', port=22):
     transport = paramiko.Transport((ip, port))
     transport.connect(username=username, password=password)
@@ -46,7 +43,7 @@ class Host:
         self.remote_supervisor_conf = os.path.abspath(os.path.join(self.config.remote_tmp_dir, 'supervisord.conf'))
 
     @property
-    def pwd(self):
+    def _pwd(self):
         stdouts = self.run_ssh('pwd')
         return stdouts[0].strip('\r\n')
 
@@ -61,45 +58,6 @@ class Host:
         outs = stdout.readlines()
         return outs
 
-    def upload_file(self, file, path):
-        local_hash = md5(file)
-        remote_hash = self.run_ssh(f'')
-        if local_hash is remote_hash:
-            return
-        self.run_ssh(f'rm {path} && mkdir -p {path}')
-        self.sftp.put(file, path)
-
-    def save_to_remote_file(self, content, file):
-        """ 保存内容到远程文件
-        """
-        path, file = os.path.split(file)
-        if path:
-            self.run_ssh(f'mkdir -p {path}')
-        self.run_ssh(f'echo "{content}" >> {file}')
-
-    def is_exist_at_remote(self, file, remote_file):
-        """ 判断文件是否已存在于远端
-        """
-        if os.path.isdir(remote_file):
-            remote_file = os.path.join(remote_file, '*')
-        local_md5 = md5(file)
-        remote_md5 = self.run_ssh(f'md5sum {remote_file}')
-        if local_md5 in str(remote_md5):
-            return True
-        return False
-
-    def upload_platon(self, remote_path=None):
-        """ 上传platon二进制文件到远程机器，会使用tmp进行缓存
-        """
-        file_name = 'platon_' + md5(self.config.platon)
-        tmp_path = os.path.join(self.config.remote_tmp_dir, file_name)
-        if not self.is_exist_at_remote(self.config.platon, self.config.remote_tmp_dir):
-            self.upload_file(self.config.platon, tmp_path)
-        if remote_path:
-            if os.path.isdir(remote_path):
-                remote_path = os.path.join(remote_path, 'platon')
-        self.run_ssh(f'cp {tmp_path} {remote_path}')
-
     @_try_do
     def install_dependency(self):
         self.run_ssh("sudo -S -p '' ntpdate 0.centos.pool.ntp.org", self.password)
@@ -113,13 +71,63 @@ class Host:
             self.run_ssh("sudo -S -p '' apt install -y --reinstall supervisor", self.password)
             template_file = 'supervisor/supervisor_template.conf'
             tmp_file = os.path.join(self.config.local_tmp_dir, self.host, 'supervisord.conf')
-            self.__fill_supervisor_conf(template_file, tmp_file)
-            self.upload_file(tmp_file, self.config.remote_tmp_dir)
+            self._fill_supervisor_conf(template_file, tmp_file)
+            self._upload_file(tmp_file, self.config.remote_tmp_dir)
         is_running = self.run_ssh("ps -ef | grep supervisord | grep -v grep | awk {'print $2'}")
         if not is_running:
             self.run_ssh("sudo -S -p '' supervisord -c /etc/supervisor/supervisord.conf", self.password)
 
-    def __fill_supervisor_conf(self, template_file, to_file):
+    def clean_supervisorctl_cfg(self):
+        # todo: 精准清理
+        self.run_ssh("sudo -S -p '' rm -rf /etc/supervisor/conf.d/n*", self.password)
+
+    def _upload_platon(self, remote_path=None):
+        """ 上传platon二进制文件到远程机器，会使用tmp进行缓存
+        """
+        file_name = 'platon_' + md5(self.config.platon)
+        tmp_path = os.path.join(self.config.remote_tmp_dir, file_name)
+        if not self._is_file_exist(self.config.platon, self.config.remote_tmp_dir):
+            self._upload_file(self.config.platon, tmp_path)
+        if remote_path:
+            if os.path.isdir(remote_path):
+                remote_path = os.path.join(remote_path, 'platon')
+        self.run_ssh(f'cp {tmp_path} {remote_path}')
+
+    def _upload_keystore(self, remote_path=None):
+        """ 上传keystore文件到远程机器，会使用tmp进行缓存
+        """
+        # todo: coding
+        pass
+
+    def _upload_file(self, file, path):
+        local_hash = md5(file)
+        path = os.path.join(path, file)
+        remote_hash = self.run_ssh(f'md5sum {path}')
+        if local_hash is remote_hash:
+            return
+        self.run_ssh(f'rm {path} && mkdir -p {path}')
+        self.sftp.put(file, path)
+
+    def _save_to_file(self, content, file):
+        """ 将内容保存为主机上的文件
+        """
+        path, file = os.path.split(file)
+        if path:
+            self.run_ssh(f'mkdir -p {path}')
+        self.run_ssh(f'echo "{content}" >> {file}')
+
+    def _is_file_exist(self, file, remote_file):
+        """ 判断文件是否已存在于主机
+        """
+        if os.path.isdir(remote_file):
+            remote_file = os.path.join(remote_file, '*')
+        local_md5 = md5(file)
+        remote_md5 = self.run_ssh(f'md5sum {remote_file}')
+        if local_md5 in str(remote_md5):
+            return True
+        return False
+
+    def _fill_supervisor_conf(self, template_file, to_file):
         cfg = configparser.ConfigParser()
         cfg.read(template_file)
         cfg.set('inet_http_server', 'username', self.username)
@@ -128,6 +136,3 @@ class Host:
         cfg.set('supervisorctl', 'password', self.password)
         with open(to_file, 'w') as f:
             cfg.write(f)
-
-    def clean_supervisorctl_cfg(self):
-        self.run_ssh("sudo -S -p '' rm -rf /etc/supervisor/conf.d/n*", self.password)

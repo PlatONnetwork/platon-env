@@ -5,7 +5,8 @@ import tarfile
 from loguru import logger
 from typing import List
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-from config import Config, NodesInfo, NodeInfo
+
+from config import Config, NodesInfo, NodeInfo, HostInfo
 from host import Host
 from node import Node
 from util import md5
@@ -15,13 +16,20 @@ class Chain:
     def __init__(self, nodes: NodesInfo, config: Config):
         self.config = config
         # generate node obj
-        self.init_nodes = self.__gen_node_obj(nodes.init.members)
-        self.normal_nodes = self.__gen_node_obj(nodes.normal.members)
+        self.init_nodes = self._gen_node_obj(nodes.init.members)
+        self.normal_nodes = self._gen_node_obj(nodes.normal.members)
         self.nodes = self.init_nodes + self.normal_nodes
         # generate host obj
         all_nodes = nodes.init.members + nodes.normal.members
-        self.hosts = self.__gen_host_obj(all_nodes)
+        self.hosts = self._gen_host_obj(all_nodes)
         self.res_id = md5(self.config.platon)
+
+    def get_node(self, node_id):
+        """ Get the node object by node id.
+        """
+        for node in self.nodes:
+            if node_id == node.node_id:
+                return node
 
     def is_running(self, nodes: List[Node] = None) -> bool:
         """ Check the running status of the nodes.
@@ -38,20 +46,14 @@ class Chain:
         """
         if nodes is None:
             nodes = self.nodes
-        self.gen_tmp_files()
-        self.install_dependency()   # todo: 支持多节点
+        self._gen_tmp_files()
         self.clean(nodes)
-        self.upload_files(nodes)
+        self._install_dependency(nodes)
+        self._install_supervisor(nodes)
+        self._upload_node_files(nodes)
+        self._upload_host_files(nodes)
         self.start(nodes)
         self.is_running(nodes)
-
-    def gen_tmp_files(self):
-        if not os.path.exists(self.config.local_tmp_dir):
-            os.mkdir(self.config.local_tmp_dir)
-        self.__fill_genesis_file()
-        self.__fill_static_file()
-        self.__save_files_to_tmp(self.config.platon)
-        self.__save_files_to_tmp(self.config.keystore_dir)
 
     def start(self, nodes: List[Node] = None):
         """ Boot node
@@ -62,7 +64,7 @@ class Chain:
         def _start(node: Node):
             return node.start()
 
-        return self.executor(_start, nodes)
+        return self._concurrent_executor(_start, nodes)
 
     def stop(self, nodes: List[Node] = None):
         """ Close node
@@ -73,7 +75,7 @@ class Chain:
         def _stop(node: Node):
             return node.stop()
 
-        return self.executor(_stop, nodes)
+        return self._concurrent_executor(_stop, nodes)
 
     def restart(self, nodes: List[Node] = None):
         """ Restart node
@@ -84,7 +86,7 @@ class Chain:
         def _restart(node: Node):
             return node.restart()
 
-        return self.executor(_restart, nodes)
+        return self._concurrent_executor(_restart, nodes)
 
     def clean(self, nodes: List[Node] = None):
         """ Close the node and delete the node data
@@ -95,7 +97,7 @@ class Chain:
         def _clean(node: Node):
             return node.clean()
 
-        return self.executor(_clean, nodes)
+        return self._concurrent_executor(_clean, nodes)
 
     def clean_db(self, nodes: List[Node] = None):
         """ Close the node and clear the node database
@@ -106,7 +108,16 @@ class Chain:
         def _clean_db(node: Node):
             return node.clean_db()
 
-        return self.executor(_clean_db, nodes)
+        return self._concurrent_executor(_clean_db, nodes)
+
+    def clean_supervisorctl_cfg(self, hosts: List[Host] = None):
+        if hosts is None:
+            hosts = self.hosts
+
+        def clean(host: Host):
+            return host.clean_supervisorctl_cfg()
+
+        return self._concurrent_executor(clean, hosts)
 
     def shutdown(self, nodes: List[Node] = None):
         """ Close all nodes and delete the node deployment directory, supervisor node configuration
@@ -115,68 +126,86 @@ class Chain:
         if nodes is None:
             nodes = self.nodes
 
-        def close(node: Node):
+        def _shutdown(node: Node):
             return node.close()
 
-        return self.executor(close, nodes)
+        return self._concurrent_executor(_shutdown, nodes)
 
-    def clean_supervisor_file(self, hosts: List[Host] = None):
-        if hosts is None:
-            hosts = self.hosts
-
-        def clean(host: Host):
-            return host.clean_supervisor_cfg()
-
-        return self.executor(clean, hosts)
-
-    def get_node(self, node_id):
-        """ Get the node object by node id.
+    def _gen_node_obj(self, nodes_info: List[NodeInfo]):
+        """ Instantiate all nodes to class 'Node'
         """
-        for node in self.nodes:
-            if node_id == node.node_id:
-                return node
+        nodes = []
+        for node_info in nodes_info:
+            nodes.append(Node(node_info, self.config))
+        return nodes
 
-    def upload_files(self, nodes: List[Node] = None):
-        """ Upload s files
-        """
-        self.__put_files()
-        if nodes is None:
-            nodes = self.nodes
-
-        def _upload_files(node: Node):
-            return node.upload_files()
-
-        return self.executor(_upload_files, nodes)
-
-    def __put_files(self, hosts: List[Host] = None):
-        """ Upload compressed file
-        """
-        def uploads(host: Host):
-            return host.upload_file()
-
-        return self.executor(uploads, self.hosts)
-
-    def __gen_host_obj(self, nodes_info: List[NodeInfo]) -> List[Host]:
+    def _gen_host_obj(self, hosts_info: List[HostInfo]) -> List[Host]:
         """ Instantiate all Hosts
         """
         hosts, done = [], []
-        for node_info in nodes_info:
-            if node_info.host in done:
+        for host_info in hosts_info:
+            if host_info.host in done:
                 continue
-            done.append(node_info.host)
-            hosts.append(Host(node_info, self.config))
+            done.append(host_info.host)
+            hosts.append(Host(host_info, self.config))
         return hosts
 
-    def __fill_static_file(self):
+    def _gen_genesis_nodes(self, nodes: List[Node] = None) -> List[dict]:
+        """ genesis the genesis node list
+        """
+        if nodes is None:
+            nodes = self.init_nodes
+        genesis_nodes = []
+        for node in nodes:
+            genesis_nodes.append({"node": node.enode, "blsPubKey": node.bls_pubkey})
+        return genesis_nodes
+
+    def _gen_static_nodes(self, nodes: List[Node] = None) -> list:
+        """ Get static node list
+        """
+        if nodes is None:
+            nodes = self.init_nodes
+        static_nodes = []
+        for node in nodes:
+            static_nodes.append(node.enode)
+        return static_nodes
+
+    def _gen_tmp_files(self):
+        if not os.path.exists(self.config.local_tmp_dir):
+            os.mkdir(self.config.local_tmp_dir)
+        self._fill_genesis_file()
+        self._fill_static_file()
+        self._tar_files_to_local_tmp(self.config.platon)
+        self._tar_files_to_local_tmp(self.config.keystore_dir)
+
+    def _fill_genesis_file(self):
+        """ fill genesis file
+        """
+        if self.config.network is 'private':
+            if not self.config.genesis_file:
+                raise FileNotFoundError('genesis template file not found!')
+        with open(self.config.genesis_file, mode='r', encoding='utf-8') as f:
+            genesis_dict = json.load(f)
+        init_nodes = genesis_dict['config']['cbft']['initialNodes']
+        genesis_nodes = self._gen_genesis_nodes(self.init_nodes)
+        # TODO: 补充异常提示
+        if bool(init_nodes) == bool(genesis_nodes):
+            raise Exception('The init node already exist in the genesis file, but it is different from the chain file.')
+        genesis_dict['config']['cbft']['initialNodes'] = genesis_nodes
+        tmp_file = os.path.join(self.config.local_tmp_dir, 'genesis.json')
+        with open(tmp_file, mode='w', encoding='utf-8') as f:
+            f.write(json.dumps(genesis_dict, indent=4))
+
+    def _fill_static_file(self):
         """ Rewrite static
         """
         if not self.config.static_nodes:
-            self.config.static_nodes = self.__gen_static_nodes()
+            self.config.static_nodes = self._gen_static_nodes()
         tmp_file = os.path.join(self.config.local_tmp_dir, 'static-nodes.json')
         with open(tmp_file, 'w', encoding='utf-8') as f:
             f.write(json.dumps(self.config.static_nodes, indent=4))
 
-    def __save_files_to_tmp(self, files):
+    def _tar_files_to_local_tmp(self, files):
         """ Compression files
         """
         files_md5 = md5(files)
@@ -189,49 +218,49 @@ class Chain:
         t.add(tmp_file, arcname=os.path.basename(tmp_file))
         t.close()
 
-    def __gen_node_obj(self, nodes_info: List[NodeInfo]):
-        """ Instantiate all nodes to class 'Node'
+    def _upload_host_files(self, hosts: List[Host] = None):
+        """ Upload tmp file to hosts
         """
-        nodes = []
-        for node_info in nodes_info:
-            nodes.append(Node(node_info, self.config))
-        return nodes
 
-    def __fill_genesis_file(self):
-        """ fill genesis file
+        def uploads(host: Host):
+            return host._upload_file()
+
+        return self._concurrent_executor(uploads, self.hosts)
+
+    def _upload_node_files(self, nodes: List[Node] = None):
+        """ Upload node config file to nodes
         """
-        if self.config.network is 'private':
-            if not self.config.genesis_file:
-                raise FileNotFoundError('genesis template file not found!')
-        with open(self.config.genesis_file, mode='r', encoding='utf-8') as f:
-            genesis_dict = json.load(f)
-        init_nodes = genesis_dict['config']['cbft']['initialNodes']
-        genesis_nodes = self.__gen_genesis_nodes(self.init_nodes)
-        # TODO: 补充异常提示
-        if bool(init_nodes) == bool(genesis_nodes):
-            raise Exception('The init node already exist in the genesis file, but it is different from the chain file.')
-        genesis_dict['config']['cbft']['initialNodes'] = genesis_nodes
-        tmp_file = os.path.join(self.config.local_tmp_dir, 'genesis.json')
-        with open(tmp_file, mode='w', encoding='utf-8') as f:
-            f.write(json.dumps(genesis_dict, indent=4))
+        if nodes is None:
+            nodes = self.nodes
 
-    def __gen_genesis_nodes(self, nodes: List[Node]) -> List[dict]:
-        """ genesis the genesis node list
+        def uploads(node: Node):
+            return node._upload_files()
+
+        return self._concurrent_executor(uploads, nodes)
+
+    def _install_dependency(self, hosts: List[Host] = None):
+        """ Installation dependence
         """
-        genesis_nodes = []
-        for node in nodes:
-            genesis_nodes.append({"node": node.enode, "blsPubKey": node.bls_pubkey})
-        return genesis_nodes
+        if hosts is None:
+            hosts = self.hosts
 
-    def __gen_static_nodes(self) -> list:
-        """ Get static node enode list
+        def install(host: Host):
+            return host.__install_dependency()
+
+        return self._concurrent_executor(install, hosts)
+
+    def _install_supervisor(self, hosts: List[Host] = None):
+        """ Install supervisor
         """
-        static_nodes = []
-        for node in self.nodes:
-            static_nodes.append(node.enode)
-        return static_nodes
+        if hosts is None:
+            hosts = self.hosts
 
-    def executor(self, func, objs, *args) -> bool:
+        def install(host: Host):
+            return host.__install_supervisor()
+
+        return self._concurrent_executor(install, hosts)
+
+    def _concurrent_executor(self, func, objs, *args) -> bool:
         with ThreadPoolExecutor(max_workers=self.config.max_threads) as exe:
             futures = [exe.submit(func, pair, *args) for pair in objs]
             done, unfinished = wait(futures, timeout=30, return_when=ALL_COMPLETED)
@@ -243,32 +272,6 @@ class Chain:
         if len(result) > 0:
             raise Exception("executor {} failed:{}".format(func.__name__, result))
         return True
-
-    def install_dependency(self, hosts: List[Host] = None):
-        if self.config.install_dependency:
-            self.__install_supervisor_all()
-            self.__install_dependency_all()
-            self.config.install_dependency = False
-
-    def __install_dependency_all(self):
-        """ Installation dependence
-        """
-
-        def install(host: Host):
-            return host.install_dependency()
-
-        return self.executor(install, self.hosts)
-
-    def __install_supervisor_all(self):
-        """ Install supervisor
-        """
-
-        def install(host: Host):
-            return host.install_supervisor()
-
-        return self.executor(install, self.hosts)
-
-
 
     # def __gen_env_id(self) -> str:
     #     """
@@ -310,4 +313,3 @@ class Chain:
 #     if account_file:
 #         cfg.account_file = account_file
 #     return Controller(cfg)
-

@@ -5,6 +5,21 @@ from config import Config, NodeInfo as NodeInfo
 from host import Host
 
 
+failed_msg = r'Node {} do {} failed:{}'
+success_msg = r'Node {} do {} success'
+
+
+def _try_do(func, *args, **kwargs):
+    @wraps(func)
+    def wrap_func(self, *args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            return False, failed_msg.format(self.host, func.__name__, e)
+        return True, success_msg.format(self.host, func.__name__)
+    return wrap_func
+
+
 class Node(Host):
     def __init__(self, node_info: NodeInfo, config: Config):
         super().__init__(node_info, config)
@@ -19,7 +34,7 @@ class Node(Host):
         self.node_name = f'p{self.p2p_port}'
         # remote deploy info
         if not os.path.isabs(self.config.deploy_dir):
-            self.config.deploy_dir = os.path.join(self.pwd, self.config.deploy_dir)
+            self.config.deploy_dir = os.path.join(self._pwd, self.config.deploy_dir)
         self.node_dir = os.path.join(self.config.deploy_dir, self.node_name)
 
     @property
@@ -30,54 +45,13 @@ class Node(Host):
     def running(self) -> bool:
         return bool(self.run_ssh(f"ps -ef|grep platon|grep port|grep {self.p2p_port}|grep -v grep|awk {'print $2'}"))
 
-    def deploy(self) -> tuple:
-        self.clean()
-        self.upload_files()
-        self.init()
-        self.start()
-
-    def clean(self):
-        self.stop()
-        self.run_ssh(f"sudo -S -p '' rm -rf {self.node_dir}", self.password)
-
-    def stop(self):
-        if not self.running:
-            return True, f"node {self.node_make} node is not running"
-        self.run_ssh("sudo -S -p '' supervisorctl stop {}".format(self.node_name), self.password)
-
-    def put_bin(self):
-        self.run_ssh("rm -rf {}".format(self.bin_file))
-        self.sftp.put(self.config.platon, self.node_dir)
-        self.run_ssh('chmod +x {}'.format(self.bin_file))
-
-    def put_nodekey(self):
-        """ upload nodekey
+    def create_keystore(self, password):
+        """ create a wallet
         """
-        nodekey_file = os.path.join(self.local_tmp_dir, "nodekey")
-        with open(nodekey_file, 'w', encoding="utf-8") as f:
-            f.write(self.node_key)
-        self.run_ssh('mkdir -p {}'.format(self.data_dir))
-        self.sftp.put(nodekey_file, self.nodekey_file)
-
-    def put_blskey(self):
-        """ upload blskey
-        """
-        blskey_file = os.path.join(self.local_tmp_dir, "blskey")
-        with open(blskey_file, 'w', encoding="utf-8") as f:
-            f.write(self.bls_prikey)
-        self.run_ssh('mkdir -p {}'.format(self.data_dir))
-        self.sftp.put(blskey_file, self.blskey_file)
-
-    def put_genesis(self, genesis_file):
-        """ upload genesis
-        """
-        self.run_ssh("rm -rf {}".format(self.genesis_file))
-        self.sftp.put(genesis_file, self.genesis_file)
-
-    def put_static(self):
-        """ upload static
-        """
-        self.sftp.put(config.TMP_STATIC_FILE, self.static_file)
+        cmd = "{} account new --datadir {}".format(self.bin_file, self.data_dir)
+        stdin, stdout, _ = self.ssh.exec_command("source /etc/profile;%s" % cmd)
+        stdin.write(str(password) + "\n")
+        stdin.write(str(password) + "\n")
 
     def init(self):
         """ Initialize
@@ -89,17 +63,11 @@ class Node(Host):
             raise Exception(rf'node {self.node_make} init failed: {result[0]}')
         logger.info(f'node-{self.node_make} init success')
 
-    def clean_db(self):
-        """ clear the node database
-        """
-        self.stop()
-        self.run_ssh("sudo -S -p '' rm -rf {}".format(self.db_dir), self.password)
-
-    def clean_log(self):
-        """ clear node log
-        """
-        self.stop()
-        self.run_ssh(f'rm -rf {self.log_dir}; mkdir -p {self.log_dir}')
+    def deploy(self) -> tuple:
+        self.clean()
+        self._upload_files()
+        self.init()
+        self.start()
 
     def start(self):
         is_success = self.stop()
@@ -113,23 +81,40 @@ class Node(Host):
             if "ERROR" in r or "Command 'supervisorctl' not found" in r:
                 raise Exception("Start failed:{}".format(r.strip("\n")))
 
+    def stop(self):
+        if not self.running:
+            return True, f"node {self.node_make} node is not running"
+        self.run_ssh("sudo -S -p '' supervisorctl stop {}".format(self.node_name), self.password)
+
     def restart(self):
-        self.append_log_file()
         result = self.run_ssh("sudo -S -p '' supervisorctl restart " + self.node_name, self.password)
         for r in result:
             if "ERROR" in r:
                 raise Exception("restart failed:{}".format(r.strip("\n")))
 
+    @_try_do
     def update(self):
-        def __update():
-            # todo fix me
-            self.stop()
-            self.put_bin()
-            self.start()
+        # 更新Platon并重启
+        # todo: coding
+        self.restart()
 
-        return self.try_do_resturn(__update)
+    def clean(self):
+        self.stop()
+        self.run_ssh(f"sudo -S -p '' rm -rf {self.node_dir}", self.password)
 
-    def close(self):
+    def clean_db(self):
+        """ clear the node database
+        """
+        self.stop()
+        self.run_ssh("sudo -S -p '' rm -rf {}".format(self.db_dir), self.password)
+
+    def clean_log(self):
+        """ clear node log
+        """
+        self.stop()
+        self.run_ssh(f'rm -rf {self.log_dir}; mkdir -p {self.log_dir}')
+
+    def shutdown(self):
         """ Close the node, delete the node data, delete the node supervisor configuration
         """
         is_success = True
@@ -144,39 +129,87 @@ class Node(Host):
             self.t.close()
             return is_success, msg
 
-    def create_keystore(self, password="88888888"):
-        """ create a wallet
+    def _upload_files(self, genesis_file):
+        """ upload or copy the base file
         """
-        cmd = "{} account new --datadir {}".format(self.bin_file, self.data_dir)
-        stdin, stdout, _ = self.ssh.exec_command("source /etc/profile;%s" % cmd)
-        stdin.write(str(password) + "\n")
-        stdin.write(str(password) + "\n")
+        ls = self.run_ssh(f'cd {config.REMOTE_RESOURCE_TMP_DIR}; ls')
+        if self.cfg.res_id and (self.cfg.res_id + ".tar.gz\n") in ls:
+            logger.debug("{}-copy bin...".format(self.node_dir))
+            cmd = "cp -r {}/{}/* {}".format(config.REMOTE_RESOURCE_TMP_DIR, self.cfg.res_id,
+                                            self.node_dir)
+            self.run_ssh(cmd)
+            self.run_ssh("chmod +x {};mkdir {}".format(self.bin_file, self.log_dir))
+        else:
+            self._upload_platon()
+            self._upload_config()
+            # self.put_static()
+            self.create_keystore()
+        if self.cfg.init_chain:
+            logger.debug("{}-upload genesis...".format(self.node_make))
+            self._upload_genesis(genesis_file)
+        if self.cfg.is_need_static:
+            self._upload_static()
+        logger.debug("{}-upload blskey...".format(self.node_make))
+        self._upload_blskey()
+        logger.debug("{}-upload nodekey...".format(self.node_make))
+        self._upload_nodekey()
+        self._put_supervisorctl_cfg()
+        self.run_ssh("sudo -S -p '' supervisorctl update " + self.node_name, self.password)
 
-    def put_config(self):
+    def _upload_platon(self):
+        # todo: 从缓存获取platon
+        self.run_ssh("rm -rf {}".format(self.bin_file))
+        self.sftp.put(self.config.platon, self.node_dir)
+        self.run_ssh('chmod +x {}'.format(self.bin_file))
+
+    def _upload_nodekey(self):
+        """ upload nodekey
+        """
+        nodekey_file = os.path.join(self.local_tmp_dir, "nodekey")
+        with open(nodekey_file, 'w', encoding="utf-8") as f:
+            f.write(self.node_key)
+        self.run_ssh('mkdir -p {}'.format(self.data_dir))
+        self.sftp.put(nodekey_file, self.nodekey_file)
+
+    def _upload_blskey(self):
+        """ upload blskey
+        """
+        blskey_file = os.path.join(self.local_tmp_dir, "blskey")
+        with open(blskey_file, 'w', encoding="utf-8") as f:
+            f.write(self.bls_prikey)
+        self.run_ssh('mkdir -p {}'.format(self.data_dir))
+        self.sftp.put(blskey_file, self.blskey_file)
+
+    def _upload_static(self):
+        """ upload static
+        """
+        self.sftp.put(config.TMP_STATIC_FILE, self.static_file)
+
+    def _upload_genesis(self, genesis_file):
+        """ upload genesis
+        """
+        self.run_ssh("rm -rf {}".format(self.genesis_file))
+        self.sftp.put(genesis_file, self.genesis_file)
+
+    def _upload_config(self):
         """ upload config
         """
         self.run_ssh("rm -rf {}".format(self.config_file))
         self.sftp.put(config.TMP_CONFIG_FILE, self.config_file)
 
-    def put_deploy_conf(self):
+    def _put_supervisorctl_cfg(self):
         """ upload node deployment supervisor configuration
         """
         logger.debug("{}-generate supervisor deploy conf...".format(self.node_make))
         supervisor_tmp_file = os.path.join(self.local_tmp_dir, "{}.conf".format(self.node_name))
-        self.__gen_deploy_conf(supervisor_tmp_file)
+        self._gen_supervisorctl_cfg(supervisor_tmp_file)
         logger.debug("{}-upload supervisor deploy conf...".format(self.node_make))
         self.run_ssh("rm -rf {}".format(self.supervisor_file))
         self.run_ssh("mkdir -p {}".format(config.REMOTE_SUPERVISOR_TMP_DIR))
         self.sftp.put(supervisor_tmp_file, self.supervisor_file)
         self.run_ssh("sudo -S -p '' cp {} /etc/supervisor/conf.d".format(self.supervisor_file), self.password)
 
-    def upload_file(self, local_file, remote_file):
-        if local_file and os.path.exists(local_file):
-            self.sftp.put(local_file, remote_file)
-        else:
-            logger.info("file: {} not found".format(local_file))
-
-    def __gen_deploy_conf(self, sup_tmp_file):
+    def _gen_supervisorctl_cfg(self, sup_tmp_file):
         """ Generate a supervisor configuration for node deployment
         """
         with open(sup_tmp_file, "w") as fp:
@@ -212,29 +245,4 @@ class Node(Host):
             fp.write(supervisor_default_conf)
             fp.write("stdout_logfile={}/platon.log\n".format(self.log_dir))
 
-    def upload_files(self, genesis_file):
-        """ upload or copy the base file
-        """
-        ls = self.run_ssh(f'cd {config.REMOTE_RESOURCE_TMP_DIR}; ls')
-        if self.cfg.res_id and (self.cfg.res_id + ".tar.gz\n") in ls:
-            logger.debug("{}-copy bin...".format(self.node_dir))
-            cmd = "cp -r {}/{}/* {}".format(config.REMOTE_RESOURCE_TMP_DIR, self.cfg.res_id,
-                                            self.node_dir)
-            self.run_ssh(cmd)
-            self.run_ssh("chmod +x {};mkdir {}".format(self.bin_file, self.log_dir))
-        else:
-            self.put_bin()
-            self.put_config()
-            # self.put_static()
-            self.create_keystore()
-        if self.cfg.init_chain:
-            logger.debug("{}-upload genesis...".format(self.node_make))
-            self.put_genesis(genesis_file)
-        if self.cfg.is_need_static:
-            self.put_static()
-        logger.debug("{}-upload blskey...".format(self.node_make))
-        self.put_blskey()
-        logger.debug("{}-upload nodekey...".format(self.node_make))
-        self.put_nodekey()
-        self.put_deploy_conf()
-        self.run_ssh("sudo -S -p '' supervisorctl update " + self.node_name, self.password)
+
