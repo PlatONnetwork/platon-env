@@ -2,7 +2,7 @@ import os
 from functools import wraps
 from loguru import logger
 
-from config import Config, Node as NodeInfo
+from config import Config, NodeInfo as NodeInfo
 from host import Host
 
 failed_msg = r'p{} do {} failed:{}'

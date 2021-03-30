@@ -2,22 +2,18 @@ import json
 import os
 import shutil
 import tarfile
-from ruamel import yaml
 from loguru import logger
 from typing import List
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-
-from config import Config, Nodes, Node as NodeInfo, create_config, create_nodes
+from config import Config, NodesInfo, NodeInfo
 from host import Host
 from node import Node
+from util import md5
 
 
 class Chain:
-    def __init__(self, nodes: Nodes, config: Config):
+    def __init__(self, nodes: NodesInfo, config: Config):
         self.config = config
-        # make local tmp dir
-        if not os.path.exists(self.config.local_tmp_dir):
-            os.mkdir(self.config.local_tmp_dir)
         # generate node obj
         self.init_nodes = self.__gen_node_obj(nodes.init.members)
         self.normal_nodes = self.__gen_node_obj(nodes.normal.members)
@@ -25,8 +21,9 @@ class Chain:
         # generate host obj
         all_nodes = nodes.init.members + nodes.normal.members
         self.hosts = self.__gen_host_obj(all_nodes)
+        self.res_id = md5(self.config.platon)
 
-    def is_running(self, nodes: List[Node]) -> bool:
+    def is_running(self, nodes: List[Node] = None) -> bool:
         """ Check the running status of the nodes.
         """
         if nodes is None:
@@ -36,49 +33,25 @@ class Chain:
                 return False
         return True
 
-    def get_node(self, node_id):
-        """ Get the node object by node id.
-        """
-        for node in self.nodes:
-            if node_id == node.node_id:
-                return node
-
-    def deploy(self, nodes: List[Node]):
+    def deploy(self, nodes: List[Node] = None):
         """ Deploy all nodes and start
         """
         if nodes is None:
             nodes = self.nodes
-        self.clean(nodes)
         self.gen_tmp_files()
-        self.install_dependency()
+        self.install_dependency()   # todo: 支持多节点
+        self.clean(nodes)
         self.upload_files(nodes)
         self.start(nodes)
         self.is_running(nodes)
 
     def gen_tmp_files(self):
-        """ Prepare environmental data
-        """
+        if not os.path.exists(self.config.local_tmp_dir):
+            os.mkdir(self.config.local_tmp_dir)
         self.__fill_genesis_file()
         self.__fill_static_file()
-        self.__compression_files()
-
-    def install_dependency(self):
-        if self.config.install_dependency:
-            self.__install_supervisor_all()
-            self.__install_dependency_all()
-            self.config.install_dependency = False
-
-    def upload_files(self, nodes: List[Node] = None):
-        """ Upload all files
-        """
-        self.__put_files_all()
-        if nodes is None:
-            nodes = self.nodes
-
-        def _upload_files(node: Node):
-            return node.upload_files()
-
-        return self.executor(_upload_files, nodes)
+        self.__save_files_to_tmp(self.config.platon)
+        self.__save_files_to_tmp(self.config.keystore_dir)
 
     def start(self, nodes: List[Node] = None):
         """ Boot node
@@ -120,7 +93,7 @@ class Chain:
             nodes = self.nodes
 
         def _clean(node: Node):
-            return node.remove()
+            return node.clean()
 
         return self.executor(_clean, nodes)
 
@@ -135,15 +108,6 @@ class Chain:
 
         return self.executor(_clean_db, nodes)
 
-    def clean_supervisor_file(self, hosts: List[Host] = None):
-        if hosts is None:
-            hosts = self.hosts
-
-        def clean(host: Host):
-            return host.clean_supervisor_cfg()
-
-        return self.executor(clean, hosts)
-
     def shutdown(self, nodes: List[Node] = None):
         """ Close all nodes and delete the node deployment directory, supervisor node configuration
         """
@@ -156,35 +120,41 @@ class Chain:
 
         return self.executor(close, nodes)
 
-    def __put_files_all(self):
+    def clean_supervisor_file(self, hosts: List[Host] = None):
+        if hosts is None:
+            hosts = self.hosts
+
+        def clean(host: Host):
+            return host.clean_supervisor_cfg()
+
+        return self.executor(clean, hosts)
+
+    def get_node(self, node_id):
+        """ Get the node object by node id.
+        """
+        for node in self.nodes:
+            if node_id == node.node_id:
+                return node
+
+    def upload_files(self, nodes: List[Node] = None):
+        """ Upload s files
+        """
+        self.__put_files()
+        if nodes is None:
+            nodes = self.nodes
+
+        def _upload_files(node: Node):
+            return node.upload_files()
+
+        return self.executor(_upload_files, nodes)
+
+    def __put_files(self, hosts: List[Host] = None):
         """ Upload compressed file
         """
-        logger.info("upload compression")
-
         def uploads(host: Host):
             return host.upload_file()
 
         return self.executor(uploads, self.hosts)
-
-    def __install_dependency_all(self):
-        """ Installation dependence
-        """
-        logger.info("install rely")
-
-        def install(host: Host):
-            return host.install_dependency()
-
-        return self.executor(install, self.hosts)
-
-    def __install_supervisor_all(self):
-        """ Install supervisor
-        """
-        logger.info("install supervisor")
-
-        def install(host: Host):
-            return host.install_supervisor()
-
-        return self.executor(install, self.hosts)
 
     def __gen_host_obj(self, nodes_info: List[NodeInfo]) -> List[Host]:
         """ Instantiate all Hosts
@@ -206,33 +176,29 @@ class Chain:
         with open(tmp_file, 'w', encoding='utf-8') as f:
             f.write(json.dumps(self.config.static_nodes, indent=4))
 
-    def __compression_files(self):
-        """ Compressed file
+    def __save_files_to_tmp(self, files):
+        """ Compression files
         """
-        env_gz = os.path.join(self.config.local_tmp_dir, self.res_id)
-        if os.path.exists(env_gz):
+        files_md5 = md5(files)
+        tmp_file = os.path.join(self.config.local_tmp_dir, files_md5)
+        if os.path.exists(tmp_file):
             return
-        os.makedirs(env_gz)
-        data_dir = os.path.join(env_gz, "data")
-        os.makedirs(data_dir)
-        keystore_tmp = os.path.join(data_dir, "keystore")
-        os.makedirs(keystore_tmp)
-        shutil.copy(self.config.keystore_dir, keystore_tmp)
-        shutil.copyfile(self.config.platon, os.path.join(env_gz, "platon"))
-        t = tarfile.open(env_gz + ".tar.gz", "w:gz")
-        t.add(env_gz, arcname=os.path.basename(env_gz))
+        os.makedirs(tmp_file)
+        shutil.copyfile(self.config.platon, os.path.join(tmp_file, "platon"))
+        t = tarfile.open(tmp_file + ".tar.gz", "w:gz")
+        t.add(tmp_file, arcname=os.path.basename(tmp_file))
         t.close()
 
-    def __gen_node_obj(self, nodes_info: List[Node]):
+    def __gen_node_obj(self, nodes_info: List[NodeInfo]):
         """ Instantiate all nodes to class 'Node'
         """
         nodes = []
         for node_info in nodes_info:
-            nodes.append(Node(node_info, self.config, ))
+            nodes.append(Node(node_info, self.config))
         return nodes
 
     def __fill_genesis_file(self):
-        """ Rewrite genesis
+        """ fill genesis file
         """
         if self.config.network is 'private':
             if not self.config.genesis_file:
@@ -265,6 +231,45 @@ class Chain:
             static_nodes.append(node.enode)
         return static_nodes
 
+    def executor(self, func, objs, *args) -> bool:
+        with ThreadPoolExecutor(max_workers=self.config.max_threads) as exe:
+            futures = [exe.submit(func, pair, *args) for pair in objs]
+            done, unfinished = wait(futures, timeout=30, return_when=ALL_COMPLETED)
+        result = []
+        for d in done:
+            is_success, msg = d.result()
+            if not is_success:
+                result.append(msg)
+        if len(result) > 0:
+            raise Exception("executor {} failed:{}".format(func.__name__, result))
+        return True
+
+    def install_dependency(self, hosts: List[Host] = None):
+        if self.config.install_dependency:
+            self.__install_supervisor_all()
+            self.__install_dependency_all()
+            self.config.install_dependency = False
+
+    def __install_dependency_all(self):
+        """ Installation dependence
+        """
+
+        def install(host: Host):
+            return host.install_dependency()
+
+        return self.executor(install, self.hosts)
+
+    def __install_supervisor_all(self):
+        """ Install supervisor
+        """
+
+        def install(host: Host):
+            return host.install_supervisor()
+
+        return self.executor(install, self.hosts)
+
+
+
     # def __gen_env_id(self) -> str:
     #     """
     #     """
@@ -293,20 +298,6 @@ class Chain:
     #     if not os.path.exists(self.cfg.bug_log):
     #         os.mkdir(self.cfg.bug_log)
 
-    def executor(self, func, objs, *args) -> bool:
-        with ThreadPoolExecutor(max_workers=self.config.max_threads) as exe:
-            futures = [exe.submit(func, pair, *args) for pair in objs]
-            done, unfinished = wait(futures, timeout=30, return_when=ALL_COMPLETED)
-        result = []
-        for d in done:
-            is_success, msg = d.result()
-            if not is_success:
-                result.append(msg)
-        if len(result) > 0:
-            raise Exception("executor {} failed:{}".format(func.__name__, result))
-        return True
-
-
 # def create_env(conf_tmp=None, node_file=None, account_file=None, init_chain=True,
 #                install_dependency=False, install_supervisor=False) -> Controller:
 #     if not conf_tmp:
@@ -319,3 +310,4 @@ class Chain:
 #     if account_file:
 #         cfg.account_file = account_file
 #     return Controller(cfg)
+

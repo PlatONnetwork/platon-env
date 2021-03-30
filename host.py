@@ -2,11 +2,10 @@ import os
 import configparser
 import paramiko
 from functools import wraps
-
 from paramiko.ssh_exception import SSHException
-
-from config import Host as HostInfo, Config
+from config import HostInfo as HostInfo, Config
 from util import md5
+
 
 failed_msg = r'Host {} do {} failed:{}'
 success_msg = r'Host {} do {} success'
@@ -21,6 +20,9 @@ def _try_do(func, *args, **kwargs):
             return False, failed_msg.format(self.host, func.__name__, e)
         return True, success_msg.format(self.host, func.__name__)
     return wrap_func
+
+
+def nodes_to_hosts():
 
 
 def connect(ip, username='root', password='', port=22):
@@ -39,8 +41,14 @@ class Host:
         self.password = host_info.password
         self.ssh_port = host_info.ssh_port
         self.config = config
+        # todo：单例化连接
         self.ssh, self.sftp = connect(self.host, self.username, self.password, self.ssh_port)
         self.remote_supervisor_conf = os.path.abspath(os.path.join(self.config.remote_tmp_dir, 'supervisord.conf'))
+
+    @property
+    def pwd(self):
+        stdouts = self.run_ssh('pwd')
+        return stdouts[0].strip('\r\n')
 
     def run_ssh(self, cmd, keys: tuple = None):
         stdin, stdout, stderr = self.ssh.exec_command(cmd)
@@ -53,11 +61,6 @@ class Host:
         outs = stdout.readlines()
         return outs
 
-    @property
-    def pwd(self):
-        stdouts = self.run_ssh('pwd')
-        return stdouts[0].strip('\r\n')
-
     def upload_file(self, file, path):
         local_hash = md5(file)
         remote_hash = self.run_ssh(f'')
@@ -66,7 +69,7 @@ class Host:
         self.run_ssh(f'rm {path} && mkdir -p {path}')
         self.sftp.put(file, path)
 
-    def save_file(self, content, file):
+    def save_to_remote_file(self, content, file):
         """ 保存内容到远程文件
         """
         path, file = os.path.split(file)
@@ -74,7 +77,7 @@ class Host:
             self.run_ssh(f'mkdir -p {path}')
         self.run_ssh(f'echo "{content}" >> {file}')
 
-    def file_exist(self, file, remote_file):
+    def is_exist_at_remote(self, file, remote_file):
         """ 判断文件是否已存在于远端
         """
         if os.path.isdir(remote_file):
@@ -90,7 +93,7 @@ class Host:
         """
         file_name = 'platon_' + md5(self.config.platon)
         tmp_path = os.path.join(self.config.remote_tmp_dir, file_name)
-        if not self.file_exist(self.config.platon, self.config.remote_tmp_dir):
+        if not self.is_exist_at_remote(self.config.platon, self.config.remote_tmp_dir):
             self.upload_file(self.config.platon, tmp_path)
         if remote_path:
             if os.path.isdir(remote_path):

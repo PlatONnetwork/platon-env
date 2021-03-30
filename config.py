@@ -27,7 +27,7 @@ class Config:
 
 
 @dataclass
-class Host:
+class HostInfo:
     host: str = None
     username: str = None
     password: str = None
@@ -35,7 +35,7 @@ class Host:
 
 
 @dataclass
-class CommonInfo(Host):
+class NodeBaseInfo(HostInfo):
     p2p_port: int = None
     rpc_port: int = None
     ws_port: int = None
@@ -52,7 +52,7 @@ class CommonInfo(Host):
         return asdict(self)
 
 @dataclass
-class Node(CommonInfo):
+class NodeInfo(NodeBaseInfo):
     node_id: str = None
     node_key: str = None
     bls_pubkey: str = None
@@ -73,8 +73,8 @@ class Node(CommonInfo):
 
 
 @dataclass
-class NodeGroup(CommonInfo):
-    members: List[Node] = field(default_factory=[])
+class NodeGroupInfo(NodeBaseInfo):
+    members: List[NodeInfo] = field(default_factory=[])
 
     def __post_init__(self):
         for member in self.members:
@@ -82,9 +82,9 @@ class NodeGroup(CommonInfo):
 
 
 @dataclass
-class Nodes(CommonInfo):
-    init: NodeGroup = None
-    normal: NodeGroup = None
+class NodesInfo(NodeBaseInfo):
+    init: NodeGroupInfo = None
+    normal: NodeGroupInfo = None
 
     def __post_init__(self):
         members = self.init.members + self.normal.members
@@ -103,10 +103,11 @@ def create_config(config_dict) -> Config:
 
 
 # create nodes obj
-def create_nodes(nodes_dict) -> Nodes:
-    return from_dict(Nodes, nodes_dict)
+def create_nodes(nodes_dict) -> NodesInfo:
+    return from_dict(NodesInfo, nodes_dict)
 
 
+# save to file
 def to_file(self, file):
     data = self.to_dict()
     with open(file, "w") as f:

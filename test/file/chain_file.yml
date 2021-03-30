@@ -1,10 +1,10 @@
 config:
-  platon: platon
+  platon: file/platon
   network: private
-  genesis_file: genesis.json
-  keystore_dir: keystore
+  genesis_file: file/genesis.json
+  keystore_dir: file/keystore
   deploy_dir: platon
-  local_tmp_dir: tmp
+  local_tmp_dir: file/tmp
   install_dependency: true
   max_threads: 30
   sync_mode: full
