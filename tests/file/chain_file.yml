@@ -12,8 +12,8 @@ config:
   debug: true
   append_cmd: ''
   static_nodes:
-    - 'test'
-    - 'test'
+    - 'tests'
+    - 'tests'
 nodes:
   username: platon
   password: Platon123!
