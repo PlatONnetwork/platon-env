@@ -18,7 +18,6 @@ class Config:
     max_threads: int = 30
     sync_mode: str = 'fast'
     log_level: int = 4
-    debug: bool = True
     append_cmd: str = ''
     static_nodes: List[str] = field(default_factory=[])
 
@@ -27,15 +26,11 @@ class Config:
 
 
 @dataclass
-class HostInfo:
+class BaseInfo:
     host: str = None
     username: str = None
     password: str = None
     ssh_port: int = 22
-
-
-@dataclass
-class NodeBaseInfo(HostInfo):
     p2p_port: int = None
     rpc_port: int = None
     ws_port: int = None
@@ -51,9 +46,20 @@ class NodeBaseInfo(HostInfo):
     def to_dict(self):
         return asdict(self)
 
+@dataclass
+class HostInfo:
+    host: str = None
+    username: str = None
+    password: str = None
+    ssh_port: int = 22
+
+# create host obj
+def create_host(host_dict) -> HostInfo:
+    return from_dict(HostInfo, host_dict)
+
 
 @dataclass
-class NodeInfo(NodeBaseInfo):
+class NodeInfo(BaseInfo):
     node_id: str = None
     node_key: str = None
     bls_pubkey: str = None
@@ -74,7 +80,7 @@ class NodeInfo(NodeBaseInfo):
 
 
 @dataclass
-class NodeGroupInfo(NodeBaseInfo):
+class NodeGroupInfo(BaseInfo):
     members: List[NodeInfo] = field(default_factory=[])
 
     def __post_init__(self):
@@ -83,7 +89,7 @@ class NodeGroupInfo(NodeBaseInfo):
 
 
 @dataclass
-class NodesInfo(NodeBaseInfo):
+class NodesInfo(BaseInfo):
     init: NodeGroupInfo = None
     normal: NodeGroupInfo = None
 

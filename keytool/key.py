@@ -37,8 +37,3 @@ def execute_cmd(cmd):
     out = r.read()
     r.close()
     return out
-#
-#
-# if __name__ == '__main__':
-#     print(gen_node_keypair())
-#     print(gen_bls_keypair())
