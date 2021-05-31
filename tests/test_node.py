@@ -13,7 +13,7 @@ def test_enode():
 
 
 def test_gen_supervisor_cfg():
-    node.add_supervisor_cfg()
+    node._prepare_supervisor_cfg()
 
 
 def test_deploy():

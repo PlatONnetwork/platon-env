@@ -17,7 +17,7 @@ def test_uninstall():
     supervisor.uninstall()
 
 def test_put_config():
-    supervisor.put_config()
+    supervisor.upload_config()
 
 
 def test_start():

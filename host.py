@@ -1,27 +1,11 @@
 import os
 import paramiko
-from functools import wraps
 from loguru import logger
 from paramiko.ssh_exception import SSHException
 
 from supervisor.supervisor import Supervisor
 from utils.md5 import md5
 from utils.path import join_path
-
-failed_msg = r'Host {} do {} failed:{}'
-success_msg = r'Host {} do {} success'
-
-
-def _try_do(func, *args, **kwargs):
-    @wraps(func)
-    def wrap_func(self):
-        try:
-            func(*args, **kwargs)
-        except Exception as e:
-            return False, failed_msg.format(self.ip, func.__name__, e)
-        return True, success_msg.format(self.ip, func.__name__)
-
-    return wrap_func
 
 
 def connect(ip, username='root', password='', port=22):
