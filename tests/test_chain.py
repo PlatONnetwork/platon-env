@@ -1,6 +1,6 @@
-from chain import Chain
-from host import Host
-from node import Node
+from platon.chain import Chain
+from base.host import Host
+from platon.node import Node
 
 host = Host('10.10.8.209', 'juzhen', 'Juzhen123!')
 node_id = '35bb5daad814fe902030cba6fd2d3ec60906dab70ba5df4d42a19448d300ab203cfd892c325f6716965dd93d8de2a377a2806c9703b69b68287577c70f9e7c07'

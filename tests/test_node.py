@@ -1,5 +1,5 @@
-from host import Host
-from node import Node
+from base.host import Host
+from platon.node import Node
 from utils.util import CMD
 
 host = Host('10.10.8.209', 'juzhen', 'Juzhen123!')

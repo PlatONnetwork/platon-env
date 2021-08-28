@@ -3,11 +3,11 @@ import tarfile
 from loguru import logger
 from paramiko.ssh_exception import SSHException
 
-from utils.cmd import CMD
+from base.service import Service
 from utils.path import join_path
 
 
-class Node:
+class Node(Service):
     def __init__(self, host, node_id, node_key, bls_pubkey=None, bls_prikey=None, p2p_port=16789):
         self.host = host
         self.node_id = node_id

@@ -11,7 +11,7 @@ class Config:
     network: str
     genesis_file: str = ''
     keystore_dir: str = ''
-    deploy_dir: str = 'platon'
+    deploy_dir: str = ''
     local_tmp_dir: str = 'tmp'
     remote_tmp_dir: str = 'tmp'
     install_dependency: bool = True

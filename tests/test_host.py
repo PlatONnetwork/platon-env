@@ -1,4 +1,4 @@
-from host import Host
+from base.host import Host
 
 host = Host('10.10.8.209', 'juzhen', 'Juzhen123!')
 

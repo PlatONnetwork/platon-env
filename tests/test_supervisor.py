@@ -1,4 +1,4 @@
-from host import Host
+from base.host import Host
 from supervisor.supervisor import Supervisor
 
 host = Host('10.10.8.209', 'juzhen', 'Juzhen123!')

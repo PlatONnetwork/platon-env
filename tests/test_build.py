@@ -1,8 +1,6 @@
-import os
 import yaml
-from chain import Chain
-from config import create_config, create_nodes
-from loguru import logger
+from platon.chain import Chain
+from platon.config import create_config, create_nodes
 
 
 def test_base_deploy():
