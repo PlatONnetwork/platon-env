@@ -1,4 +1,4 @@
-from platon.node import Node
+from node import Node
 from utils.executor import concurrent_executor
 
 
@@ -6,7 +6,6 @@ class Chain:
 
     def __init__(self, init_nodes: list[Node], normal_nodes: list[Node]):
         """ 初始化chain对象
-
         Args:
             init_nodes: 创始节点列表
             normal_nodes: 普通节点列表

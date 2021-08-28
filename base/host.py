@@ -1,118 +1,69 @@
 import os
-import paramiko
-from loguru import logger
-from paramiko.ssh_exception import SSHException
-
+from fabric import Connection, Config
 from supervisor.supervisor import Supervisor
 from utils.md5 import md5
 from utils.path import join_path
 
 
-def connect(ip, username='root', password='', port=22):
-    transport = paramiko.Transport((ip, port))
-    transport.connect(username=username, password=password)
-    ssh = paramiko.SSHClient()
-    ssh._transport = transport
-    sftp = paramiko.SFTPClient.from_transport(transport)
-    return ssh, sftp
-
-
 class Host:
 
-    def __init__(self, ip, username, password, ssh_port=22, base_path='platon'):
+    def __init__(self, ip, username, password, port=22, workdir='platon'):
         self.ip = ip
         self.username = username
         self.password = password
-        self.ssh_port = ssh_port
-        self.ssh, self.sftp = connect(self.ip, self.username, self.password, self.ssh_port)
+        self.port = port
+        config = Config(overrides={'sudo': {'password': password}})
+        self.connection = Connection(self.ip, self.username, self.port, config=config, connect_kwargs={'password': password})
         self.supervisor = Supervisor(self)
-        self.base_path = self.get_abs_path(base_path)
-        self.tmp_path = join_path(self.base_path, 'tmp')
-        self.cmd(f'mkdir -p {self.tmp_path}')
+        self.workdir = join_path(self.ssh('pwd'), workdir)  # todo: 支持home之外的目录
+        self.tmpdir = join_path(self.workdir, 'tmp')
+        self.ssh(f'mkdir -p {self.tmpdir}')
 
-    def pwd(self):
-        """ 获取远程主机的当前目录
+    def ssh(self, command, sudo=False, warn=True, hide='both', strip=True):
         """
-        outs, _ = self.cmd('pwd')
-        return outs[0].strip('\r\n')
-
-    def pid(self, process_name):
-        """ 获取远程主机的进程pid
-        """
-        outs, _ = self.cmd(f'ps -ef | grep {process_name} | grep -v grep' + ' | ' + "awk {'print $2'}")
-        return outs
-
-    def is_exist(self, remote_path):
-        """ 判断文件是否已存在于远程主机
-        """
-        outs, _ = self.cmd(f'ls {remote_path}')
-        if outs:
-            return True
-        return False
-
-    def get_abs_path(self, path):
-        """ 获取path在远程主机的绝对路径
-        """
-        if os.path.isabs(path):
-            return path
-        return join_path(self.pwd(), path)
-
-    def cmd(self, cmd, keys=None, sudo=False, mode='normal'):
-        """ 执行远程shell命令
-        TODO: 支持多个keys输入
-
         Args:
-            cmd (str): 要执行的命令
-            keys (str): 要在执行过程中输入的信息
-            sudo (bool): 是否使用root权限执行，在权限不足时使用
-            mode: 执行模式，包括’normal‘、’strict‘两种模式，当使用’strict‘模式时，如果命令返回了error信息，则抛出异常
+            command: 需要执行的shell命令行
+            sudo: 是否用sudo的方式执行
+            warn: 当命令执行失败的时候，以警告的方式打印错误，而不是抛出异常
+            hide: 打印错误信息时，需要隐藏的输出内容，包含：out、err、both
+            strip: 是否直接返回命令行执行结果，False返回fabric-result对象
         """
         if sudo:
-            cmd = f"sudo -S -p '' {cmd}"
-        logger.debug(f'execute command: {cmd}')
-        stdin, stdout, stderr = self.ssh.exec_command(cmd)
-        if keys:
-            stdin.write(keys + '\n')
-        outs = stdout.readlines()
-        errs = stderr.readlines()
-        if mode == 'strict' and errs:
-            raise SSHException(errs)
-        logger.debug(f'command outs: {outs}, errs: {errs}')
-        return outs, errs
-
-    def get_file(self, remote_path, local_path):
-        """ 下载远程主机的文件
-        """
-        self.sftp.get(remote_path, local_path)
-
-    def put_file(self, local_path, remote_path=None, sudo=False, mode='normal'):
-        """ 上传文件到远程主机
-        注意：sftp无法直接上传到权限不足的目录，因此通过缓存进行上传
-
-        Args:
-            local_path (str): 本地文件路径
-            remote_path (str): 远程文件路径
-            sudo (bool): 是否使用root权限上传，在权限不足时使用
-            mode (str): 上传模式，包括‘normal’、‘tmp’两种模式，当使用’tmp‘模式时，会对文件进行缓存，建议对需要重复上传的大文件使用
-        """
-        file_md5 = md5(local_path)
-        tmp_file_path = join_path(self.tmp_path, file_md5)
-        if not self.is_exist(tmp_file_path):
-            self.sftp.put(local_path, tmp_file_path)
-        if not remote_path:
-            return tmp_file_path
-        dir_path, _ = os.path.split(remote_path)
-        if not self.is_exist(dir_path):
-            self.cmd(f'mkdir -p {dir_path}', sudo=sudo)
-        if mode == 'tmp':
-            self.cmd(f'cp {tmp_file_path} {remote_path}', self.password, sudo=sudo)
+            result = self.connection.sudo(command, warn=warn, hide=hide)
         else:
-            self.cmd(f'mv {tmp_file_path} {remote_path}', self.password, sudo=sudo)
+            result = self.connection.run(command, warn=warn, hide=hide)
+        if strip:
+            return result.stdout.strip()
+        return result
 
-    def save_to_file(self, string, remote_path):
-        """ 将字符串对象保存到远程主机
+    def pid(self, process):
+        """ 获取远程主机的进程pid
         """
-        dir_path, _ = os.path.split(remote_path)
+        return self.ssh(f'ps -ef | grep {process} | grep -v grep | ' + "awk {'print $2'}")
+
+    def is_exist(self, path):
+        """ 判断文件是否已存在于远程主机
+        """
+        return self.ssh(f'test -e {path}', strip=False).ok
+
+    def save_to_file(self, string, path):
+        """ 将字符串保存到远程主机
+        """
+        dir_path, _ = os.path.split(path)
         if dir_path:
-            self.cmd(f'mkdir -p {dir_path}')
-        self.cmd(rf"echo '{string}' > {remote_path}")
+            self.ssh(f'mkdir -p {dir_path}')
+        self.ssh(rf"echo '{string}' > {path}")
+
+    def put_via_tmp(self, local, remote=None):
+        """ 上传文件到远程主机并缓存
+        """
+        fm = md5(local)
+        tmp = join_path(self.tmpdir, fm)
+        if not self.is_exist(tmp):
+            self.connection.put(local, tmp)
+        if not remote:
+            return tmp
+        path, _ = os.path.split(remote)
+        if not self.is_exist(path):
+            self.ssh(f'mkdir -p {path}', sudo=True)
+        self.ssh(f'cp {tmp} {remote}', sudo=True)

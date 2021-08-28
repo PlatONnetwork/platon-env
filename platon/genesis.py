@@ -16,7 +16,7 @@ class Genesis:
         genesis_nodes = []
         for node in nodes:
             genesis_nodes.append({"node": node.enode, "blsPubKey": node.bls_pubkey})
-        genesis_dict['config']['cbft']['initialNodes'] = genesis_nodes
+        genesis_dict['factory']['cbft']['initialNodes'] = genesis_nodes
         if not to_file:
             to_file = template_file
         with open(to_file, mode='w', encoding='utf-8') as file:

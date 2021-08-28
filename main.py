@@ -1,3 +1,3 @@
 """
-实现cmd部署
+实现factory和cmd
 """
