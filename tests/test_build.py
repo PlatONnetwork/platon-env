@@ -1,6 +1,6 @@
 import yaml
 from platon.chain import Chain
-from platon.config import create_config, create_nodes
+from platon.data import dict_to_obj, ConfigData, ChainData
 
 
 def test_base_deploy():
@@ -8,15 +8,15 @@ def test_base_deploy():
     with open('file/chain_file.yml', encoding='utf-8') as f:
         chain_file = yaml.load(f)
     # generate config
-    config = create_config(chain_file.get('config'))
-    # logger.debug(f'Config: {config.to_dict()}')
+    config = dict_to_obj(ConfigData, chain_file.get('config'))
+    # logger.debug(f'ConfigData: {config.to_dict()}')
     # generate nodes
-    nodes = create_nodes(chain_file.get('nodes'))
+    nodes = dict_to_obj(ChainData, chain_file.get('chain'))
     # logger.debug(f'Nodes: {nodes.to_dict()}')
     # init chain/host/node obj
-    chain = Chain(nodes, config)
+    # chain = Chain(nodes, config)
     # logger.info(f'chain = {chain.__dict__}')
-    chain.deploy(chain.nodes)
+    # chain.deploy(chain.nodes)
 
 
 def test_add_to_platon():

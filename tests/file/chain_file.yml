@@ -12,7 +12,7 @@ config:
   static_nodes:
     - 'tests'
     - 'tests'
-nodes:
+chain:
   username: platon
   password: Platon123!
   ssh_port: 22

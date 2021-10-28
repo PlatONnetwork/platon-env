@@ -1,30 +1,51 @@
+from abc import ABC
+
+from base.host import Host
+from base.service import Service
 from node import Node
 from utils.executor import concurrent_executor
 
 
-class Chain:
+class Chain(Service):
+    hosts: list[Host]
+    init_nodes: set[Node]
+    normal_nodes: set[Node]
 
-    def __init__(self, init_nodes: list[Node], normal_nodes: list[Node]):
+    def __init__(self, nodes: [Node] = None):
         """ 初始化chain对象
-        Args:
-            init_nodes: 创始节点列表
-            normal_nodes: 普通节点列表
         """
-        self.init_nodes = init_nodes
-        self.normal_nodes = normal_nodes
-        self.static_nodes = None
-        self.start_command = ''
+        super().__init__()
+        if not nodes:
+            nodes = []
+        for node in nodes:
+            self.add_process(node)
 
     @property
     def nodes(self):
-        return self.init_nodes + self.normal_nodes
+        return set.union(self.init_nodes, self.normal_nodes)
 
-    def get_node(self, node_id):
-        """ 获取node对象
+    def install(self, platon, network, genesis_file=None, keystore_dir=None):
+        """ 部署链
         """
-        for node in self.nodes:
-            if node.node_id == node_id:
-                return node
+        nodes = self.nodes
+        return concurrent_executor(nodes, 'install', platon, network, genesis_file, keystore_dir)
+
+    def uninstall(self, nodes: list[Node] = None):
+        """ 清理链，会停止节点并删除节点文件
+        """
+        if not nodes:
+            nodes = self.nodes
+        return concurrent_executor(nodes, 'uninstall')
+
+    def add_process(self, node: Node):
+        """ 将进程添加到服务，进行统一管理
+        """
+        if self.processes.get(node.name):
+            raise Exception('The node already exists.')
+
+        self.init_nodes.add(node) if node.is_init_node else self.normal_nodes.add(node)
+
+        self.processes[node.name] = node
 
     def status(self, nodes: list[Node] = None):
         """ 检查链运行状态
@@ -61,13 +82,6 @@ class Chain:
             nodes = self.nodes
         return concurrent_executor(nodes, 'stop')
 
-    def clean(self, nodes: list[Node] = None):
-        """ 清理链，会停止节点并删除节点文件
-        """
-        if not nodes:
-            nodes = self.nodes
-        return concurrent_executor(nodes, 'clean')
-
     def upload_platon(self, platon_file, nodes: list[Node] = None):
         """ 使用缓存上传platon
         """
@@ -82,40 +96,20 @@ class Chain:
             nodes = self.nodes
         return concurrent_executor(nodes, 'upload_keystore', keystore_path)
 
-    def set_static_nodes(self, enodes, nodes: list[Node] = None):
+    def set_static_nodes(self, enodes: list[str], nodes: list[Node] = None):
         """ 指定要连接的静态节点，可以指定多个
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'set_static_nodes', enodes)
 
-    def set_start_options(self, start_options, nodes: list[Node] = None):
-        """ 指定节点的启动参数
+    @classmethod
+    def from_chain_file(cls, file):
+        """ 通过chain肖像文件, 生成chain对象
         """
-        if not nodes:
-            nodes = self.nodes
-        return concurrent_executor(nodes, 'set_start_options', start_options)
+        pass
 
-    def deploy(self, platon, network, genesis_file=None, keystore_dir=None):
-        """ 部署链
+    def to_chain_file(self):
+        """ 通过chain对象，生成chain肖像文件
         """
-        nodes = self.nodes
-        return concurrent_executor(nodes, 'deploy', platon, network, genesis_file, keystore_dir)
-
-    def install_supervisor(self, nodes: list[Node] = None):
-        """ 安装supervisor
-        """
-        if not nodes:
-            nodes = self.nodes
-
-        supervisors = set(node.host.supervisor for node in nodes)
-        return concurrent_executor(supervisors, 'install')
-
-    def uninstall_supervisor(self, nodes: list[Node] = None):
-        """ 卸载supervisor
-        """
-        if not nodes:
-            nodes = self.nodes
-
-        supervisors = set(node.host.supervisor for node in nodes)
-        return concurrent_executor(supervisors, 'uninstall')
+        pass

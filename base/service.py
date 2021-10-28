@@ -1,20 +1,50 @@
+from base.process import Process
+
+
 class Service:
+    processes: dict
 
-    def __init__(self, host, **kwargs):
-        self.name = None
-        self.dir = None
-        self.bin = None
+    def __init__(self, processes: [Process] = None):
+        if not processes:
+            processes = []
+        for process in processes:
+            self.add_process(process)
 
-    def __str__(self):
-        return self.name
+    def add_process(self, process: Process):
+        """ 将进程添加到服务，进行统一管理
+        """
+        if self.processes.get(process.name):
+            raise Exception()
 
-    def start(self):
-        pass
+        self.processes[process.name] = process
 
-    def stop(self):
-        pass
+    def remove_process(self, name):
+        """ 从服务中移除进程
+        """
+        self.processes.pop(name)
 
-    def restart(self):
-        pass
+    def get_processes(self, name: str = None):
+        """ 通过名称获取进程，可以同时匹配多个
+        """
+        raise NotImplementedError("process must implement this method")
 
+    # def show(self, *args, **kwargs):
+    #     raise NotImplementedError("process must implement this method")
 
+    def install(self, *args, **kwargs):
+        raise NotImplementedError("process must implement this method")
+
+    def uninstall(self, *args, **kwargs):
+        raise NotImplementedError("process must implement this method")
+
+    def status(self, *args, **kwargs):
+        raise NotImplementedError("process must implement this method")
+
+    def start(self, *args, **kwargs):
+        raise NotImplementedError("process must implement this method")
+
+    def restart(self, *args, **kwargs):
+        raise NotImplementedError("process must implement this method")
+
+    def stop(self, *args, **kwargs):
+        raise NotImplementedError("process must implement this method")

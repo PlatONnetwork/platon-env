@@ -1,26 +1,76 @@
 import os
 from fabric import Connection, Config
-from supervisor.supervisor import Supervisor
+
+from base.process import Process
+from base.supervisor.supervisor import Supervisor
 from utils.md5 import md5
 from utils.path import join_path
 
 
 class Host:
+    supervisor: Supervisor
+    processes: dict
 
-    def __init__(self, ip, username, password, port=22, workdir='platon'):
+    def __init__(self,
+                 ip: str,
+                 username: str,
+                 certificate: str = None,
+                 password: str = None,
+                 port: int = 22,
+                 is_superviosr: bool = True,
+                 processes: [Process] = None
+                 ):
+        """
+        初始化远程主机对象并尝试连接，支持免密/密码/证书方式。
+
+        Args:
+            ip: IP地址
+            username: 用户名
+            certificate: 证书
+            password: 密码/证书密码
+            port: ssh端口
+            processes: 要注册的进程
+        """
         self.ip = ip
-        self.username = username
-        self.password = password
         self.port = port
-        config = Config(overrides={'sudo': {'password': password}})
-        self.connection = Connection(self.ip, self.username, self.port, config=config, connect_kwargs={'password': password})
-        self.supervisor = Supervisor(self)
-        self.workdir = join_path(self.ssh('pwd'), workdir)  # todo: 支持home之外的目录
-        self.tmpdir = join_path(self.workdir, 'tmp')
-        self.ssh(f'mkdir -p {self.tmpdir}')
+        self.username = username
+        self.certificate = certificate
+        self.password = password
+        self._connection = None
+        self.tmp_dir = '.env-tmp'
+        self.is_superviosr = is_superviosr
+        if self.is_superviosr:
+            self.supervisor = Supervisor(self)
+            self.supervisor.install()
+        if not processes:
+            processes = []
+        for process in processes:
+            self.register(process)
+
+    @property
+    def connection(self):
+        """ 单例模式连接到服务器,支持免密/密码/证书方式
+        """
+        # todo: 支持root模式
+        if self._connection and self._connection.is_connected():
+            return self._connection
+
+        if self.certificate:
+            # todo: 证书方式连接
+            config = None
+        else:
+            config = Config(overrides={'sudo': {'password': self.password}})
+
+        self._connection = Connection(self.ip, self.username, self.port, config=config, connect_kwargs={'password': self.password})
+
+    def pid(self, name):
+        """ 通过进程名字，获取远程主机的进程号
+        """
+        return self.ssh(f'ps -ef | grep {name} | grep -v grep | ' + "awk {'print $2'}")
 
     def ssh(self, command, sudo=False, warn=True, hide='both', strip=True):
-        """
+        """ 在远程主机上执行ssh命令
+
         Args:
             command: 需要执行的shell命令行
             sudo: 是否用sudo的方式执行
@@ -36,34 +86,64 @@ class Host:
             return result.stdout.strip()
         return result
 
-    def pid(self, process):
-        """ 获取远程主机的进程pid
-        """
-        return self.ssh(f'ps -ef | grep {process} | grep -v grep | ' + "awk {'print $2'}")
-
-    def is_exist(self, path):
+    def file_exist(self, path):
         """ 判断文件是否已存在于远程主机
         """
         return self.ssh(f'test -e {path}', strip=False).ok
 
-    def save_to_file(self, string, path):
-        """ 将字符串保存到远程主机
+    def fast_put(self, local, remote=None):
+        """ 使用缓存机制，上传文件到远程主机，以提高上传速度
+        # todo: 支持压缩上传
         """
-        dir_path, _ = os.path.split(path)
-        if dir_path:
-            self.ssh(f'mkdir -p {dir_path}')
-        self.ssh(rf"echo '{string}' > {path}")
-
-    def put_via_tmp(self, local, remote=None):
-        """ 上传文件到远程主机并缓存
-        """
-        fm = md5(local)
-        tmp = join_path(self.tmpdir, fm)
-        if not self.is_exist(tmp):
-            self.connection.put(local, tmp)
+        _md5 = md5(local)
+        tmp_file = join_path(self.tmp_dir, _md5)
+        if not self.file_exist(tmp_file):
+            self.connection.put(local, tmp_file)
         if not remote:
-            return tmp
+            return tmp_file
         path, _ = os.path.split(remote)
-        if not self.is_exist(path):
+        if not self.file_exist(path):
             self.ssh(f'mkdir -p {path}', sudo=True)
-        self.ssh(f'cp {tmp} {remote}', sudo=True)
+        self.ssh(f'cp {tmp_file} {remote}', sudo=True)
+
+    def write_file(self, content, file):
+        """ 将文本内容写入远程主机的文件，目前仅支持写入新的文件
+        # todo： 支持写入已存在的文件，包括覆盖、追加等方式
+        """
+        path, _ = os.path.split(file)
+        if path:
+            self.ssh(f'mkdir -p {path}')
+        self.ssh(rf"echo '{content}' > {file}")
+
+    def register(self, process: Process):
+        """ 将进程注册到主机对象，以便后续管理和使用
+        """
+        if self.processes.get(process.name):
+            raise Exception()
+
+        self.processes[process.name] = process
+
+    def unregister(self, name):
+        """ 通过进程名字，删除远程主机上的进程注册信息
+        """
+        self.processes.pop(name)
+
+    def get_processes(self, **kwargs):
+        """ 通过进程属性，获取进程对象，可以同时匹配多个
+        """
+        processes = []
+
+        def match(process: Process):
+            for key, value in kwargs:
+                if process.__getattribute__(key) == value:
+                    return process
+
+        for process in self.processes:
+            matched = match(process)
+            if matched:
+                processes.append(matched)
+
+        return processes
+
+    def set_supervisor(self, supervisor: Supervisor):
+        self.supervisor = supervisor

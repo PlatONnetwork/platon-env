@@ -14,12 +14,12 @@ def test_pid():
 
 
 def test_is_exist():
-    assert host.is_exist('/home/juzhen/testing') is False
+    assert host.file_exist('/home/juzhen/testing') is False
 
 
 def test_save_to_file():
-    host.save_to_file('shing', '/home/juzhen/test.txt')
+    host.write_file('shing', '/home/juzhen/test.txt')
 
 
 def test_put_via_tmp():
-    host.put_via_tmp('file/platon')
+    host.fast_put('file/platon')

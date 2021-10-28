@@ -2,11 +2,11 @@ import json
 from dataclasses import dataclass, field, asdict
 from typing import List
 from dacite import from_dict
-from keytool.key import gen_node_keypair, gen_bls_keypair
+from utils.key.keytool import gen_node_keypair, gen_bls_keypair
 
 
 @dataclass
-class Config:
+class ConfigData:
     platon: str
     network: str
     genesis_file: str = ''
@@ -26,7 +26,7 @@ class Config:
 
 
 @dataclass
-class BaseInfo:
+class CommonData:
     host: str = None
     username: str = None
     password: str = None
@@ -35,7 +35,7 @@ class BaseInfo:
     rpc_port: int = None
     ws_port: int = None
 
-    def _fill_common_info(self, node):
+    def _fill_member_info(self, node):
         info_dict = asdict(self)
         for k, v in info_dict.items():
             if not v:
@@ -46,20 +46,9 @@ class BaseInfo:
     def to_dict(self):
         return asdict(self)
 
-@dataclass
-class HostInfo:
-    host: str = None
-    username: str = None
-    password: str = None
-    ssh_port: int = 22
-
-# create host obj
-def create_host(host_dict) -> HostInfo:
-    return from_dict(HostInfo, host_dict)
-
 
 @dataclass
-class NodeInfo(BaseInfo):
+class NodeData(CommonData):
     node_id: str = None
     node_key: str = None
     bls_pubkey: str = None
@@ -80,43 +69,39 @@ class NodeInfo(BaseInfo):
 
 
 @dataclass
-class NodeGroupInfo(BaseInfo):
-    members: List[NodeInfo] = field(default_factory=[])
+class NodeGroupData(CommonData):
+    members: List[NodeData] = field(default_factory=[])
 
     def __post_init__(self):
         for member in self.members:
-            self._fill_common_info(member)
+            self._fill_member_info(member)
 
 
 @dataclass
-class NodesInfo(BaseInfo):
-    init: NodeGroupInfo = None
-    normal: NodeGroupInfo = None
+class ChainData(CommonData):
+    init: NodeGroupData = None
+    normal: NodeGroupData = None
 
     def __post_init__(self):
         members = self.init.members + self.normal.members
         for member in members:
-            self._fill_common_info(member)
+            self._fill_member_info(member)
         self.__check_nodes()
 
     def __check_nodes(self):
-        # TODO: complete the code
+        """ 检查节点信息是否完善与正确
+        """
+        # todo: 完成编码
         pass
 
 
-# create config obj
-def create_config(config_dict) -> Config:
-    return from_dict(Config, config_dict)
+# create obj from dict
+def dict_to_obj(cls, obj_dict):
+    return from_dict(cls, obj_dict)
 
 
-# create nodes obj
-def create_nodes(nodes_dict) -> NodesInfo:
-    return from_dict(NodesInfo, nodes_dict)
-
-
-# save to file
-def to_file(self, file):
-    data = self.to_dict()
+# save obj to file
+def obj_to_file(obj, file):
+    data = obj.to_dict()
     with open(file, "w") as f:
         f.write(json.dumps(data, indent=4))
-
