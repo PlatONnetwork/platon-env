@@ -1,15 +1,13 @@
-from abc import ABC
-
 from base.host import Host
 from base.service import Service
-from node import Node
+from platon.node import Node
 from utils.executor import concurrent_executor
 
 
 class Chain(Service):
-    hosts: list[Host]
-    init_nodes: set[Node]
-    normal_nodes: set[Node]
+    hosts: list[Host] = list()
+    init_nodes: set[Node] = set()
+    normal_nodes: set[Node] = set()
 
     def __init__(self, nodes: [Node] = None):
         """ 初始化chain对象
@@ -40,12 +38,13 @@ class Chain(Service):
     def add_process(self, node: Node):
         """ 将进程添加到服务，进行统一管理
         """
-        if self.processes.get(node.name):
+        # todo: 添加host到hosts
+        if self.processes.get(id(node)):
             raise Exception('The node already exists.')
 
         self.init_nodes.add(node) if node.is_init_node else self.normal_nodes.add(node)
 
-        self.processes[node.name] = node
+        self.processes[id(node)] = node
 
     def status(self, nodes: list[Node] = None):
         """ 检查链运行状态

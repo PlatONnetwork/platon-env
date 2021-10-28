@@ -1,3 +1,3 @@
 """
-实现factory和cmd
+实现cmd指令
 """

@@ -2,6 +2,11 @@ import json
 from dataclasses import dataclass, field, asdict
 from typing import List
 from dacite import from_dict
+
+from base.host import Host
+from platon.chain import Chain
+from platon.node import Node
+
 from utils.key.keytool import gen_node_keypair, gen_bls_keypair
 
 
@@ -95,13 +100,52 @@ class ChainData(CommonData):
         pass
 
 
-# create obj from dict
-def dict_to_obj(cls, obj_dict):
-    return from_dict(cls, obj_dict)
+def create_dataclass(cls, _dict):
+    """ 将dict数据转换为dataclass对象
+    """
+    return from_dict(cls, _dict)
 
 
-# save obj to file
-def obj_to_file(obj, file):
+def save_dataclass(obj, file):
+    """ 将dataclass对象存储为文件
+    # todo: 实现存储为yaml文件
+    """
     data = obj.to_dict()
     with open(file, "w") as f:
         f.write(json.dumps(data, indent=4))
+
+
+def chain_factory(chain_data: ChainData, config: ConfigData):
+    """ 根据dataclass生成chain对象
+    """
+    hosts = set()
+    nodes = set()
+
+    for members in chain_data.init.members:
+        host = Host(members.host, members.username, password=members.password, port=members.ssh_port)
+        hosts.add(host)
+        node = Node(host,
+                    members.node_id,
+                    members.node_key,
+                    config.network,
+                    p2p_port=members.p2p_port,
+                    bls_pubkey=members.bls_pubkey,
+                    bls_prikey=members.bls_prikey,
+                    )
+        nodes.add(node)
+
+    for members in chain_data.normal.members:
+        host = Host(members.host, members.username, password=members.password)
+        hosts.add(host)
+        node = Node(host,
+                    members.node_id,
+                    members.node_key,
+                    config.network,
+                    p2p_port=members.p2p_port,
+                    bls_pubkey=members.bls_pubkey,
+                    bls_prikey=members.bls_prikey,
+                    is_init_node=False
+                    )
+        nodes.add(node)
+
+    return Chain(nodes)

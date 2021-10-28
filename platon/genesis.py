@@ -1,32 +1,36 @@
 import json
-import os
+
+from platon.node import Node
 
 
 class Genesis:
-    template_file = ''
 
-    def fill_init_nodes(self, nodes, template_file=None, to_file=None):
-        """ 填写初始验证人信息
+    def __init__(self, basic_file: str = None):
+        self._basic_file = basic_file
+        with open(basic_file, mode='r', encoding='utf-8') as file:
+            self.data = json.load(file)
+
+    def fill_init_nodes(self, nodes: list[Node] = None, content: list[dict] = None):
+        """ 填写初始验证人信息，支持传入node对象列表，或者初始验证人信息
         """
-        if not template_file:
-            template_file = self.template_file
-        assert os.path.exists(template_file), 'genesis template file not found!'
-        with open(template_file, mode='rw', encoding='utf-8') as file:
-            genesis_dict = json.load(file)
-        genesis_nodes = []
-        for node in nodes:
-            genesis_nodes.append({"node": node.enode, "blsPubKey": node.bls_pubkey})
-        genesis_dict['factory']['cbft']['initialNodes'] = genesis_nodes
-        if not to_file:
-            to_file = template_file
-        with open(to_file, mode='w', encoding='utf-8') as file:
-            file.write(json.dumps(genesis_dict, indent=4))
+        init_nodes = []
+        if nodes:
+            for node in nodes:
+                init_nodes.append({"node": node.enode, "blsPubKey": node.bls_pubkey})
+        elif content:
+            init_nodes = content
 
-    def fill_accounts(self, accounts):
+        self.data['config']['cbft']['initialNodes'] = init_nodes
+        return self
+
+    def fill_accounts(self, accounts: list[dict]):
         """ 填写初始账户信息
         """
-        pass
+        self.data['alloc'] = accounts
+        return self
 
-
-
-
+    def save(self, file):
+        """ 保存为本地文件
+        """
+        with open(file, mode='w', encoding='utf-8') as f:
+            f.write(json.dumps(self.data, indent=4))

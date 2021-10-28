@@ -23,3 +23,15 @@ def test_save_to_file():
 
 def test_put_via_tmp():
     host.fast_put('file/platon')
+
+
+def test_add_to_platon():
+    pass
+
+
+def test_add_to_alaya():
+    pass
+
+
+def test_add_to_private_chain():
+    pass

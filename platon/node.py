@@ -60,6 +60,9 @@ class Node(Process):
         self.static_nodes = None
         # 部署信息
         self.name = f'p{self.p2p_port}'
+        if not self.base_dir:
+            # todo: 是否需要绝对路径？
+            self.base_dir = self.name
         self.deploy_path = join_path(self.base_dir, self.name)
         self.platon = join_path(self.deploy_path, 'platon')
         self.data_dir = join_path(self.deploy_path, 'data')
@@ -75,6 +78,14 @@ class Node(Process):
 
     def __str__(self):
         return f'{self.host.ip}:{self.p2p_port}'
+
+    def __eq__(self, other):
+        if self.host == other.host and self.p2p_port == other.p2p_port:
+            return True
+        return False
+
+    def __hash__(self):
+        return hash(id(self))
 
     @property
     def enode(self):
@@ -102,7 +113,7 @@ class Node(Process):
         self.host.write_file(self.node_key, self.node_key_file)
 
         if self.network == 'private':
-            assert genesis_file, 'Private network needs genesis file.'
+            assert genesis_file or self.genesis, 'Private network needs genesis file.'
             self.host.fast_put(genesis_file, self.genesis_file)
 
         if self.bls_prikey:

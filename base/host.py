@@ -1,15 +1,15 @@
 import os
-from fabric import Connection, Config
 
-from base.process import Process
+from fabric import Connection, Config
 from base.supervisor.supervisor import Supervisor
 from utils.md5 import md5
 from utils.path import join_path
+from base.process import Process
 
 
 class Host:
-    supervisor: Supervisor
-    processes: dict
+    supervisor: Supervisor = None
+    processes: dict = dict()
 
     def __init__(self,
                  ip: str,
@@ -41,11 +41,18 @@ class Host:
         self.is_superviosr = is_superviosr
         if self.is_superviosr:
             self.supervisor = Supervisor(self)
-            self.supervisor.install()
         if not processes:
             processes = []
         for process in processes:
             self.register(process)
+
+    def __eq__(self, other):
+        if self.ip == other.ip and self.username == other.username:
+            return True
+        return False
+
+    def __hash__(self):
+        return hash(id(self))
 
     @property
     def connection(self):
@@ -62,6 +69,10 @@ class Host:
             config = Config(overrides={'sudo': {'password': self.password}})
 
         self._connection = Connection(self.ip, self.username, self.port, config=config, connect_kwargs={'password': self.password})
+        return self._connection
+
+    def prepare(self):
+        self.supervisor.install()
 
     def pid(self, name):
         """ 通过进程名字，获取远程主机的进程号

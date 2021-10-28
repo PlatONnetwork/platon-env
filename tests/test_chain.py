@@ -22,3 +22,8 @@ def test_stop():
 
 
 def test_concurrent_executor():
+    pass
+
+
+def test_deploy_private_chain():
+    pass

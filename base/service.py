@@ -2,7 +2,7 @@ from base.process import Process
 
 
 class Service:
-    processes: dict
+    processes: dict = dict()
 
     def __init__(self, processes: [Process] = None):
         if not processes:
@@ -13,20 +13,32 @@ class Service:
     def add_process(self, process: Process):
         """ 将进程添加到服务，进行统一管理
         """
-        if self.processes.get(process.name):
+        if self.processes.get(id(process)):
             raise Exception()
 
-        self.processes[process.name] = process
+        self.processes[id(process)] = process
 
     def remove_process(self, name):
         """ 从服务中移除进程
         """
         self.processes.pop(name)
 
-    def get_processes(self, name: str = None):
-        """ 通过名称获取进程，可以同时匹配多个
+    def get_processes(self, **kwargs):
+        """ 通过进程属性，获取进程对象，可以同时匹配多个
         """
-        raise NotImplementedError("process must implement this method")
+        processes = []
+
+        def match(process: Process):
+            for key, value in kwargs:
+                if process.__getattribute__(key) == value:
+                    return process
+
+        for process in self.processes:
+            matched = match(process)
+            if matched:
+                processes.append(matched)
+
+        return processes
 
     # def show(self, *args, **kwargs):
     #     raise NotImplementedError("process must implement this method")
