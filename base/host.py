@@ -41,10 +41,12 @@ class Host:
         self.is_superviosr = is_superviosr
         if self.is_superviosr:
             self.supervisor = Supervisor(self)
+            self.prepare()
         if not processes:
             processes = []
         for process in processes:
             self.register(process)
+
 
     def __eq__(self, other):
         if self.ip == other.ip and self.username == other.username:
@@ -59,7 +61,8 @@ class Host:
         """ 单例模式连接到服务器,支持免密/密码/证书方式
         """
         # todo: 支持root模式
-        if self._connection and self._connection.is_connected():
+        # if self._connection and self._connection.is_connected():
+        if self._connection and self._connection.is_connected:
             return self._connection
 
         if self.certificate:
@@ -108,14 +111,18 @@ class Host:
         """
         _md5 = md5(local)
         tmp_file = join_path(self.tmp_dir, _md5)
+        if not self.file_exist(self.tmp_dir):
+            self.ssh(f'mkdir -p {self.tmp_dir}')
         if not self.file_exist(tmp_file):
             self.connection.put(local, tmp_file)
         if not remote:
             return tmp_file
         path, _ = os.path.split(remote)
         if not self.file_exist(path):
-            self.ssh(f'mkdir -p {path}', sudo=True)
-        self.ssh(f'cp {tmp_file} {remote}', sudo=True)
+        #     self.ssh(f'mkdir -p {path}', sudo=True)
+        # self.ssh(f'cp {tmp_file} {remote}', sudo=True)
+            self.ssh(f'mkdir -p {path}')
+        self.ssh(f'cp {tmp_file} {remote}')
 
     def write_file(self, content, file):
         """ 将文本内容写入远程主机的文件，目前仅支持写入新的文件

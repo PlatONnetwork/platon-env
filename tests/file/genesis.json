@@ -1,16 +1,20 @@
 {
     "config": {
-        "chainId": 100,
+        "chainId": 201018,
         "eip155Block": 3,
         "cbft": {
             "initialNodes": [
-                ],
+                {
+                    "node": "enode://493c66bd7d6051e42a68bffa5f70005555886f28a0d9f10afaca4abc45723a26d6b833126fb65f11e3be51613405df664e7cda12baad538dd08b0a5774aa22cf@192.168.21.42:16789",
+                    "blsPubKey": "5b6ce2480feee69b2007516054a25ace5d7ea2026d271fbdadcc2266f9e21e3e912f7d770c85f45385ba44e673e22b0db5ef5af1f57adf75d9b1b7628748d33a4a57ee2c8c7236691e579d219d42e1d875e084359acb8231fbc3da8ae400200e"
+                }
+            ],
             "amount": 10,
             "period": 10000,
             "validatorMode": "ppos"
         },
-        "genesisVersion": 65536,
-        "addressHRP": "lat"
+        "genesisVersion": 4096,
+        "addressHRP": "atp"
     },
     "economicModel": {
         "common": {
@@ -19,12 +23,13 @@
             "additionalCycleTime": 28
         },
         "staking": {
-            "stakeThreshold": 100000000000000000000000,
-            "operatingThreshold": 10000000000000000000,
+            "stakeThreshold": 10000000000000000000000,
+            "operatingThreshold": 1000000000000000000,
             "maxValidators": 5,
             "unStakeFreezeDuration": 2,
             "rewardPerMaxChangeRange": 500,
-            "rewardPerChangeInterval": 2
+            "rewardPerChangeInterval": 2,
+            "unDelegateFreezeDuration": 1
         },
         "slashing": {
             "slashFractionDuplicateSign": 100,
@@ -33,7 +38,7 @@
             "maxEvidenceAge": 1,
             "zeroProduceCumulativeTime": 1,
             "zeroProduceNumberThreshold": 1,
-            "zeroProduceFreezeDuration":1
+            "zeroProduceFreezeDuration": 1
         },
         "gov": {
             "versionProposalVoteDurationSeconds": 1600,
@@ -49,30 +54,33 @@
         },
         "reward": {
             "newBlockRate": 50,
-            "platONFoundationYear": 10,
-            "increaseIssuanceRatio": 250,
+            "platONFoundationYear": 2,
+            "increaseIssuanceRatio": 500,
             "theNumberOfDelegationsReward": 2
         },
         "restricting": {
-            "minimumRelease": 100000000000000000000
+            "minimumRelease": 80000000000000000000
         },
         "innerAcc": {
-            "platonFundAccount": "lat1drz94my95tskswnrcnkdvnwq43n8jt6dmzf8h8",
-            "platonFundBalance": 0,
-            "cdfAccount": "lat1kvurep20767ahvrkraglgd9t34w0w2g059pmlx",
-            "cdfBalance": 421411981000000000000000000
+            "platonFundAccount": "atp1s0vntlngyuxtc04sj0tsp785svknk2qdlazpyt",
+            "platonFundBalance": 2500000000000000000000000,
+            "cdfAccount": "atp1ur2hg0u9wt5qenmkcxlp7ysvaw6yupt4vll2fq",
+            "cdfBalance": 500000000000000000000000
         }
     },
     "nonce": "0x0376e56dffd12ab53bb149bda4e0cbce2b6aabe4cccc0df0b5a39e12977a2fcd23",
-    "timestamp": "0x175301efa90",
-    "extraData": "0x974c69752058696e67206973207468652072696368657374",
+    "timestamp": "0x17aa307eee0",
+    "extraData": "0x22cf84e1bf86cf8220e1bc84cebdcf8920e1bd81ceb4cebfe1bfa620e1bc80ceb5e1bdb620e1bc91cebecf8ccebcceb5ceb8ceb120cebaceb1e1bdb620ceb4ceb9cebaceb1ceb9cebfcf83cf8dcebdceb7cebd20cebcceb5cf84e1bdb020cf86cf81cebfcebdceaecf83ceb5cf89cf8220cf80ceb1cebdcf84e1bdb620cf84cf81cf8ccf80e1bfb320e1bc90cf80ceb9cf84ceb7ceb4ceb5cf8dcf83cebfcebcceb5cebd2e220a225765207368616c6c20616c77617973206b65657020746f2074686520757070657220726f616420616e64207072616374696365206a75737469636520776974682070727564656e636520696e206576657279207761792e220a22e8aea9e68891e4bbace6b0b8e8bf9ce59d9ae68c81e8b5b0e59091e4b88ae79a84e8b7afefbc8ce585a8e58a9be4bba5e5aea1e6858ee8b7b5e8a18ce6ada3e4b989e3808222",
     "gasLimit": "9424776",
     "alloc": {
-        "lat1rzw6lukpltqn9rk5k59apjrf5vmt2ncv8uvfn7": {
-            "balance": "9718188019000000000000000000"
+        "atp1zkrxx6rf358jcvr7nruhyvr9hxpwv9uncjmns0": {
+            "balance": "100000000000000000000000000"
         },
-        "lat1zqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqrdyjj2v": {
-            "balance": "200000000000000000000000000"
+        "atp1zqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqr5jy24r": {
+            "balance": "2000000000000000000000000"
+        },
+        "atp1s0vntlngyuxtc04sj0tsp785svknk2qdlazpyt": {
+            "balance": "0"
         }
     },
     "number": "0x0",

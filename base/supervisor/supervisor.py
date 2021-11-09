@@ -6,7 +6,7 @@ from utils.path import join_path
 
 class Supervisor(Process):
     base_path = '/etc/supervisor'
-    config_file = '/etc/supervisor/supervisor.conf'
+    config_file = '/etc/supervisor/supervisord.conf'
     process_config_path = '/etc/supervisor/conf.d'
     status_command = 'supervisorctl status {}'
     start_command = 'supervisorctl start {}'
@@ -20,15 +20,32 @@ class Supervisor(Process):
 
     def install(self):
         """ 安装supervisor
+        todo: 有些文件需要创建
+            sudo touch /var/run/supervisor.sock
+            sudo chmod 777 /var/run/supervisor.sock
+            sudo supervisord -c /etc/supervisor/supervisord.conf
         """
-        is_installed, _ = self.host.ssh("apt list | grep supervisor")
+        is_installed = self.host.ssh("apt list | grep supervisor")
         if '[installed]' not in str(is_installed):
             self.host.ssh('apt update', sudo=True)
             self.host.ssh('apt install -y --reinstall supervisor', sudo=True)
+            # self.host.ssh('apt update')
+            # self.host.ssh('apt install -y --reinstall supervisor')
             self._upload_config()
         pid = self.host.pid('supervisord')
+
         if not pid:
+            print("not pid")
+            # self.host.ssh('touch /var/run/supervisor.sock', sudo=True)
+
+            # self.host.ssh('service supervisor restart', sudo=True)
             self.host.ssh(f'supervisord -c {self.config_file}', sudo=True)
+            # self.host.ssh('supervisord -c /etc/supervisor/supervisord.conf', sudo=True)
+        # self.host.ssh('touch /var/run/supervisor.sock', sudo=True)
+        # self.host.ssh('chmod 777 /var/run/supervisor.sock', sudo=True)
+        # self.host.ssh('sudo service supervisor restart', sudo=True)
+        self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True)
+        print('111')
 
     def uninstall(self):
         """ 卸载supervisor
@@ -51,7 +68,7 @@ class Supervisor(Process):
     def remove(self, name):
         """ 通过进程名称，删除supervisor管理的进程
         """
-        process_file = os.path.join(self.process_config_path, name + '.conf')
+        process_file = os.path.join(self.process_config_path + '/', str(name) + '.conf')
         self.host.ssh(f'rm -rf {process_file}', sudo=True)
         self.update()
 
@@ -66,12 +83,14 @@ class Supervisor(Process):
     def update(self):
         """ 更新supervisor的进程列表
         """
-        self.host.connection(self.update_command)
+        # self.host.connection(self.update_command)
+        self.host.ssh(self.update_command)
 
     def start(self, name):
         """ 启动进程
         """
-        self.host.ssh(self.start_command.format(name))
+        # self.host.ssh(self.start_command.format(name))
+        self.host.ssh(self.start_command.format(name), sudo=True)
 
     def restart(self, name):
         """ 重启进程

@@ -1,4 +1,5 @@
 import json
+from typing import List, Dict
 
 from platon.node import Node
 
@@ -10,7 +11,7 @@ class Genesis:
         with open(basic_file, mode='r', encoding='utf-8') as file:
             self.data = json.load(file)
 
-    def fill_init_nodes(self, nodes: list[Node] = None, content: list[dict] = None):
+    def fill_init_nodes(self, nodes: List[Node] = None, content: List[dict] = None):
         """ 填写初始验证人信息，支持传入node对象列表，或者初始验证人信息
         """
         init_nodes = []
@@ -19,11 +20,10 @@ class Genesis:
                 init_nodes.append({"node": node.enode, "blsPubKey": node.bls_pubkey})
         elif content:
             init_nodes = content
-
         self.data['config']['cbft']['initialNodes'] = init_nodes
         return self
 
-    def fill_accounts(self, accounts: list[dict]):
+    def fill_accounts(self, accounts: dict):
         """ 填写初始账户信息
         """
         self.data['alloc'] = accounts

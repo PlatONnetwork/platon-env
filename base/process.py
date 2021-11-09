@@ -12,6 +12,8 @@ class Process:
         self.base_dir = base_dir
         self.port = port
         self.pid = pid
+        # if self.base_dir:
+        #     self.host.ssh(f'mkdir -p {self.base_dir}',sudo=False)
 
     def check(self, *args, **kwargs):
         pass

@@ -1,7 +1,7 @@
 config:
   platon: file/platon
   network: private
-  genesis_file: file/genesis.json
+  genesis_file: file/genesis_bak.json
   keystore_dir: file/keystore
   deploy_dir: platon
   local_tmp_dir: file/tmp
@@ -13,30 +13,30 @@ config:
     - 'tests'
     - 'tests'
 chain:
-  username: platon
-  password: Platon123!
+  username: juzix
+  password: 123456
   ssh_port: 22
   init:
     p2p_port: 16789
     rpc_port: 6789
     members:
-    - host: 192.168.120.121
+    - host: 192.168.16.121
       node_id: 35bb5daad814fe902030cba6fd2d3ec60906dab70ba5df4d42a19448d300ab203cfd892c325f6716965dd93d8de2a377a2806c9703b69b68287577c70f9e7c07
       node_key: 0db2cc59f8d87beb65d5ebd56c9beb9f316a406918f66679b638ebd78bb695e1
       bls_pubkey: add743cdbb0f9ae2bd5fd4faf36a70d7ca52d00f0912bc915bd1b6c8a6a93914c7fbf35bb00b7d4dd47ba1bb6c37f9089ac02558ca4bca697e2a091e618af0dc82254358ff55e7a161109d17a05ea6d1fe7481864640227b4f4b3c3f2606660e
       bls_prikey: f5aa31649246b3c05c316927f0120a511806d17ac0c67ca022bbe6aad212aa57
-    - host: 192.168.120.122
-    - host: 192.168.120.123
-    - host: 192.168.120.124
+    - host: 192.168.16.122
+    - host: 192.168.16.123
+    - host: 192.168.16.124
   normal:
     p2p_port: 16790
     rpc_port: 6790
     members:
-    - host: 192.168.120.121
+    - host: 192.168.16.121
       node_id: 7c31d0e2f716324c9051c322be59dd86194f28ad7b71e3bc3837062708b7207e82bed0d6e24691b9107549787b541e3c917ec7503e0ba3addd1340075188bad6
       node_key: 8fb60494c8040243ad23bdbe81e11fdbef6b74f6957a830c04de8d7e0e4d8595
       bls_pubkey: 9085cc70c984e5ea3cbf35bcb9443af680411b5dbb3b4984a8f09357346391879f3f06b4c1638ebf1a83beb0cf62240e823040ed5f3fc79dc47fc2418dfcee042e014c5cc06b7910c6998016d80b32adf15402e6d4230a82f124541939f31a11
       bls_prikey: 1f6de023d0547f56c1dbf77ab12cf01df13b93458ac5b6be580a383c38c29108
-    - host: 192.168.120.122
-    - host: 192.168.120.123
-    - host: 192.168.120.124
+    - host: 192.168.16.122
+    - host: 192.168.16.123
+    - host: 192.168.16.124

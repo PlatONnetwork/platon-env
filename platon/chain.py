@@ -1,13 +1,16 @@
+from typing import List, Set
+
 from base.host import Host
 from base.service import Service
 from platon.node import Node
 from utils.executor import concurrent_executor
 
 
+
 class Chain(Service):
-    hosts: list[Host] = list()
-    init_nodes: set[Node] = set()
-    normal_nodes: set[Node] = set()
+    hosts: List[Host] = list()
+    init_nodes: Set[Node] = set()
+    normal_nodes: Set[Node] = set()
 
     def __init__(self, nodes: [Node] = None):
         """ 初始化chain对象
@@ -22,13 +25,25 @@ class Chain(Service):
     def nodes(self):
         return set.union(self.init_nodes, self.normal_nodes)
 
-    def install(self, platon, network, genesis_file=None, keystore_dir=None):
+    # def install(self, platon, network, genesis_file=None, keystore_dir=None):
+    #     """ 部署链
+    #     """
+    #     nodes = self.nodes
+    #     return concurrent_executor(nodes, 'install', platon, network, genesis_file, keystore_dir)
+    def install(self,
+                platon: str,
+                network: str,
+                genesis_file: str = None,
+                static_nodes: str = None,
+                keystore_dir: str = None,
+                options: str = None,
+                ):
         """ 部署链
         """
         nodes = self.nodes
-        return concurrent_executor(nodes, 'install', platon, network, genesis_file, keystore_dir)
+        return concurrent_executor(nodes, 'install', platon, network, genesis_file, static_nodes, keystore_dir, options)
 
-    def uninstall(self, nodes: list[Node] = None):
+    def uninstall(self, nodes: List[Node] = None):
         """ 清理链，会停止节点并删除节点文件
         """
         if not nodes:
@@ -46,56 +61,56 @@ class Chain(Service):
 
         self.processes[id(node)] = node
 
-    def status(self, nodes: list[Node] = None):
+    def status(self, nodes: List[Node] = None):
         """ 检查链运行状态
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'status')
 
-    def init(self, nodes: list[Node] = None):
+    def init(self, nodes: List[Node] = None):
         """ 初始化链
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'init')
 
-    def start(self, nodes: list[Node] = None):
+    def start(self, nodes: List[Node] = None):
         """ 启动链
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'start')
 
-    def restart(self, nodes: list[Node] = None):
+    def restart(self, nodes: List[Node] = None):
         """ 重启链
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'restart')
 
-    def stop(self, nodes: list[Node] = None):
+    def stop(self, nodes: List[Node] = None):
         """ 停止链
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'stop')
 
-    def upload_platon(self, platon_file, nodes: list[Node] = None):
+    def upload_platon(self, platon_file, nodes: List[Node] = None):
         """ 使用缓存上传platon
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'upload_platon', platon_file)
 
-    def upload_keystore(self, keystore_path, nodes: list[Node] = None):
+    def upload_keystore(self, keystore_path, nodes: List[Node] = None):
         """ 使用缓存上传keystore并解压
         """
         if not nodes:
             nodes = self.nodes
         return concurrent_executor(nodes, 'upload_keystore', keystore_path)
 
-    def set_static_nodes(self, enodes: list[str], nodes: list[Node] = None):
+    def set_static_nodes(self, enodes: List[str], nodes: List[Node] = None):
         """ 指定要连接的静态节点，可以指定多个
         """
         if not nodes:
