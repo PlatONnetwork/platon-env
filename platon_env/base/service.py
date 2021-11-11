@@ -1,4 +1,4 @@
-from base.process import Process
+from platon_env.base.process import Process
 
 
 class Service:

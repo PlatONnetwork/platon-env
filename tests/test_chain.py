@@ -1,8 +1,8 @@
 import pytest
 
-from platon.chain import Chain
-from base.host import Host
-from platon.node import Node, NodeOpts
+from platon_env.chain import Chain
+from platon_env.base.host import Host
+from platon_env.node import Node, NodeOpts
 
 # host = Host('10.10.8.209', 'juzhen', 'Juzhen123!')
 # node_id = '35bb5daad814fe902030cba6fd2d3ec60906dab70ba5df4d42a19448d300ab203cfd892c325f6716965dd93d8de2a377a2806c9703b69b68287577c70f9e7c07'
@@ -33,11 +33,12 @@ chain = Chain(nodes=[node])
 def install_chain():
     nodeOpts = NodeOpts(rpc_port=rpc_port, rpc_api=rpc_api, ws_port=None, ws_api=None, extra_opts=None)
     chain.install(platon=platon, network=network, genesis_file=genesis_file, static_nodes=node.static_nodes,
-                 keystore_dir=keystore_dir, options=nodeOpts)
+                  keystore_dir=keystore_dir, options=nodeOpts)
     pid = host.ssh(f'ps -ef | grep {node.name} | grep -v grep | ' + "awk {'print $2'}")
     assert pid != '' and int(pid) > 0
 
     return chain
+
 
 def test_nodes():
     assert isinstance(chain.nodes, set)
@@ -47,7 +48,7 @@ def test_install():
     # todo: 等环境能用了写几个节点的用例
     nodeOpts = NodeOpts(rpc_port=rpc_port, rpc_api=rpc_api, ws_port=None, ws_api=None, extra_opts=None)
     chain.install(platon=platon, network=network, genesis_file=genesis_file, static_nodes=node.static_nodes,
-                 keystore_dir=keystore_dir, options=nodeOpts)
+                  keystore_dir=keystore_dir, options=nodeOpts)
     pid = host.ssh(f'ps -ef | grep {node.name} | grep -v grep | ' + "awk {'print $2'}")
     assert pid != '' and int(pid) > 0
 

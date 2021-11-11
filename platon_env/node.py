@@ -22,7 +22,6 @@ class NodeOpts:
     def __str__(self):
         string = ''
         if self.rpc_port:
-            print(f'self.rpc_api:{self.rpc_api}')
             assert self.rpc_api, 'The RPC API is not defined.'
             string += f'--rpc --rpcaddr 0.0.0.0 --rpcport {self.rpc_port} --rpcapi {self.rpc_api} '
         if self.ws_port:
@@ -48,9 +47,8 @@ class Node(Process):
                  bls_prikey: str = None,
                  is_init_node: bool = False,
                  base_dir: str = None,
-                 # base_dir: str = '/home/shing',
                  ):
-        # super().__init__(host, base_dir=base_dir, port=p2p_port)
+        super().__init__(host, base_dir=base_dir, port=p2p_port)
         self.node_id = node_id
         self.node_key = node_key
         self.network = network
@@ -62,26 +60,21 @@ class Node(Process):
         self.static_nodes = None
         # 部署信息
         self.name = f'p{self.p2p_port}'
-        # if not self.base_dir:
-        #     # todo: 是否需要绝对路径？
-        #     self.base_dir = self.name
-        # self.base_dir = base_dir
-        self.deploy_path = join_path(base_dir, self.name)
+        if not self.base_dir:
+            # todo: 是否需要绝对路径？
+            self.base_dir = self.name
+        self.deploy_path = join_path(self.base_dir, self.name)
         self.platon = join_path(self.deploy_path, 'platon')
         self.data_dir = join_path(self.deploy_path, 'data')
         self.keystore_dir = join_path(self.data_dir, 'keystore')
-
-
         self.genesis_file = join_path(self.deploy_path, 'genesis.json')
-
         self.static_file = join_path(self.deploy_path, 'static-nodes.json')
         self.node_key_file = join_path(self.deploy_path, 'nodekey')
         self.bls_prikey_file = join_path(self.deploy_path, 'blskey')
         self.log_dir = join_path(self.deploy_path, 'log')
         self.log_file = join_path(self.log_dir, 'platon.log')
         self.options = ''
-        self.supervisor_file = join_path(self.supervisor_config, self.name + '.conf')
-        super().__init__(host, name=self.name, base_dir=self.deploy_path, port=p2p_port)
+        self.supervisor_file = join_path(self.host.supervisor.process_config_path, self.name + '.conf')
 
     def __str__(self):
         return f'{self.host.ip}:{self.p2p_port}'
@@ -105,33 +98,29 @@ class Node(Process):
                 network: str,
                 genesis_file: str = None,
                 static_nodes: str = None,
-                keystore_dir: str = None,
+                keystore: str = None,
                 options: str = None,
                 ):
         """ 使用supervisor部署节点
         """
         if not self.host.supervisor:
             raise Exception("supervisor not install.")
-            # self.host.prepare()
         self.uninstall()
 
         # 准备部署所需的文件
         self.upload_platon(platon)
-
         self.host.write_file(self.node_key, self.node_key_file)
-
         if self.network == 'private':
-            assert genesis_file or self.genesis, 'Private network needs genesis file.'
+            if not genesis_file:
+                raise ValueError('Private network needs genesis file.')
             self.host.fast_put(genesis_file, self.genesis_file)
-
         if self.bls_prikey:
             self.host.write_file(self.bls_prikey, self.bls_prikey_file)
 
         if static_nodes:
             self.set_static_nodes(static_nodes)
-
-        if keystore_dir:
-            self.upload_keystore(keystore_dir)
+        if keystore:
+            self.upload_keystore(keystore)
 
         # 启动节点
         self.init()
@@ -141,7 +130,7 @@ class Node(Process):
         """ 清理节点，会停止节点并删除节点文件
         """
         self.stop()
-        self.host.ssh('rm -rf {}'.format(self.base_dir), sudo=True)
+        self.host.ssh(f'rm -rf {self.deploy_path}')
         self.host.supervisor.remove(self.name)
 
     def status(self) -> bool:
@@ -187,9 +176,7 @@ class Node(Process):
         """ 使用缓存上传keystore，支持单个文件与目录
         """
         if os.path.isfile(keystore):
-            # self.host.fast_put(keystore, self.keystore_dir)
-            self.host.fast_put(keystore, self.data_dir+'/keystore.tar.gz')
-            self.host.ssh('cd {};tar xzvf {} {}'.format(self.data_dir, 'keystore.tar.gz', 'keystore/'))
+            self.host.fast_put(keystore, self.keystore_dir)
         elif os.path.isdir(keystore):
             tar_file = keystore + '.tar.gz'
             tar = tarfile.open(tar_file, "w:gz")

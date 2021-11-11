@@ -1,6 +1,6 @@
 from ruamel import yaml
 
-from platon.factory import ConfigData, ChainData, create_dataclass, chain_factory
+from platon_env.factory import ConfigData, ChainData, create_dataclass, chain_factory
 
 
 def test_chain_factory():

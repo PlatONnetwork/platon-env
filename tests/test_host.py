@@ -1,11 +1,12 @@
-from base.host import Host
+from platon_env.base.host import Host
 
 # host = Host('10.10.8.209', 'juzhen', 'Juzhen123!')
-from utils.md5 import md5
+from platon_env.utils.md5 import md5
 
 # host = Host('192.168.16.121', 'juzix', password='123456')
 host = Host('192.168.21.42', 'shing', password='aa123456')
 base_dir = '/home/shing'
+
 
 def test_pid():
     pid = host.pid('cpu')
@@ -19,15 +20,16 @@ def test_ssh():
     dir_list = host.ssh('ls')
     assert 'tests' in dir_list
 
+
 def test_is_exist():
     assert host.file_exist(base_dir)
-    assert host.file_exist(base_dir+"/hello") is False
+    assert host.file_exist(base_dir + "/hello") is False
 
 
 def test_put_via_tmp():
     platon_bin = 'file/platon'
     tmp_file = host.fast_put(platon_bin)
-    tem_dir, md5_value = tmp_file.split('/')[0],  tmp_file.split('/')[1]
+    tem_dir, md5_value = tmp_file.split('/')[0], tmp_file.split('/')[1]
     assert tem_dir == host.tmp_dir and md5_value == md5(platon_bin)
 
     result = host.fast_put('file/platon', 'platon_evn/platon')

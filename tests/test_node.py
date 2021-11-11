@@ -1,8 +1,8 @@
 import pytest
 
-from base.host import Host
-from platon.genesis import Genesis
-from platon.node import Node, NodeOpts
+from platon_env.base.host import Host
+from platon_env.genesis import Genesis
+from platon_env.node import Node, NodeOpts
 
 # from utils.util import CMD
 
@@ -23,10 +23,10 @@ bls_prikey = 'edc1eafa379dadbe39297b629d0e17a4c7c3d90d8b7d08795a7db79dd498ec36'
 genesis_file = r'C:\PlatON\PlatON_code\platon-env\tests\file\genesis.json'
 genesis = Genesis(genesis_file)
 genesis.fill_init_nodes(content=[
-                {
-                    "node": "enode://493c66bd7d6051e42a68bffa5f70005555886f28a0d9f10afaca4abc45723a26d6b833126fb65f11e3be51613405df664e7cda12baad538dd08b0a5774aa22cf@192.168.21.42:16789",
-                    "blsPubKey": "5b6ce2480feee69b2007516054a25ace5d7ea2026d271fbdadcc2266f9e21e3e912f7d770c85f45385ba44e673e22b0db5ef5af1f57adf75d9b1b7628748d33a4a57ee2c8c7236691e579d219d42e1d875e084359acb8231fbc3da8ae400200e"
-                }])
+    {
+        "node": "enode://493c66bd7d6051e42a68bffa5f70005555886f28a0d9f10afaca4abc45723a26d6b833126fb65f11e3be51613405df664e7cda12baad538dd08b0a5774aa22cf@192.168.21.42:16789",
+        "blsPubKey": "5b6ce2480feee69b2007516054a25ace5d7ea2026d271fbdadcc2266f9e21e3e912f7d770c85f45385ba44e673e22b0db5ef5af1f57adf75d9b1b7628748d33a4a57ee2c8c7236691e579d219d42e1d875e084359acb8231fbc3da8ae400200e"
+    }])
 
 genesis.save(genesis_file)
 
@@ -38,6 +38,7 @@ rpc_api = 'web3,platon,admin,personal,debug'
 platon = 'file/platon'
 keystore_dir = 'file/keystore.tar.gz'
 
+
 @pytest.fixture()
 def install_node():
     nodeOpts = NodeOpts(rpc_port=rpc_port, rpc_api=rpc_api, ws_port=None, ws_api=None, extra_opts=None)
@@ -47,11 +48,9 @@ def install_node():
     return node
 
 
-
 def test_enode():
     enode_info = node.enode
     assert enode_info == r'enode://' + node_id + "@" + node.host.ip + ":" + str(node.p2p_port)
-
 
 
 def test_install():
@@ -92,15 +91,18 @@ def test_status(install_node):
     status_stop = node.status()
     assert status_stop is False
 
+
 def test_start():
     # install里面包含，且不太好写，就不重复写了。
     # node.start()
     pass
 
+
 def test_init():
     # install里面包含，且不太好写，就不重复写了。
     # node.init()
     pass
+
 
 def test_restart(install_node):
     pid = host.ssh(f'ps -ef | grep {node.name} | grep -v grep | ' + "awk {'print $2'}")
@@ -108,7 +110,6 @@ def test_restart(install_node):
     node.restart()
     pid_restart = host.ssh(f'ps -ef | grep {node.name} | grep -v grep | ' + "awk {'print $2'}")
     assert pid_restart != '' and pid_restart != pid
-
 
 
 def test_stop(install_node):
@@ -125,6 +126,7 @@ def test_upload_platon():
     ls_after = host.ssh(f'cd {node.deploy_path};ls')
     assert ls_after == 'platon'
 
+
 def test_upload_keystore():
     # dir格式的还没有写，有空再写
     node.uninstall()
@@ -136,11 +138,11 @@ def test_upload_keystore():
 def test_set_static_nodes():
     node.uninstall()
     enodes = [
-    "enode://3ea97e7d098d4b2c2cc7fb2ef9e2c1b802d27f01a4a0d1f7ca5ab5ce2133d560c6f703f957162a580d04da59f45707dae40107c99762509278adf1501692e0a6@192.168.16.121:16789",
-    "enode://c9b8de645f6060a364c35e89a4744263917e1342eb3f131e8ce6b2f81f92bb9601832a354d0a54b3ca051064329867590923fc4dbb60ea0d82219ec20a851cac@192.168.16.123:16789",
-    "enode://e9ee916797e66c3e10eb272956525f62ac8f9b9b74af05a5b021c7b23d7b740359c62912fe5e7fef66f2a3f5358bc7d8c1af7d862269ed5db27b5cbcf9820ec8@192.168.16.122:16789",
-    "enode://03d6f06860ace8a5295167e039b7b7161a1e8903bacf9e50fb32b1a74b15a9fc1b28b400630ef38a6fb6a0c8874dd01cd65788b42a864da56e442ab7d832d7ea@192.168.16.124:16789",
-]
+        "enode://3ea97e7d098d4b2c2cc7fb2ef9e2c1b802d27f01a4a0d1f7ca5ab5ce2133d560c6f703f957162a580d04da59f45707dae40107c99762509278adf1501692e0a6@192.168.16.121:16789",
+        "enode://c9b8de645f6060a364c35e89a4744263917e1342eb3f131e8ce6b2f81f92bb9601832a354d0a54b3ca051064329867590923fc4dbb60ea0d82219ec20a851cac@192.168.16.123:16789",
+        "enode://e9ee916797e66c3e10eb272956525f62ac8f9b9b74af05a5b021c7b23d7b740359c62912fe5e7fef66f2a3f5358bc7d8c1af7d862269ed5db27b5cbcf9820ec8@192.168.16.122:16789",
+        "enode://03d6f06860ace8a5295167e039b7b7161a1e8903bacf9e50fb32b1a74b15a9fc1b28b400630ef38a6fb6a0c8874dd01cd65788b42a864da56e442ab7d832d7ea@192.168.16.124:16789",
+    ]
     node.set_static_nodes(enodes)
     ls_after = host.ssh(f'cd {node.deploy_path};ls')
     assert ls_after == 'static-nodes.json'

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from base.host import Host
+    from platon_env.base.host import Host
 
 
 class Process:

@@ -3,11 +3,11 @@ from dataclasses import dataclass, field, asdict
 from typing import List
 from dacite import from_dict
 
-from base.host import Host
-from platon.chain import Chain
-from platon.node import Node
+from platon_env.base.host import Host
+from platon_env.chain import Chain
+from platon_env.node import Node
 
-from utils.key.keytool import gen_node_keypair, gen_bls_keypair
+from platon_env.utils.key.keytool import gen_node_keypair, gen_bls_keypair
 
 
 @dataclass
