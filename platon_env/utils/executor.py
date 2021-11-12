@@ -37,7 +37,7 @@ def concurrent_executor(objects, func_name, *args, **kwargs):
         errors: 出现异常的报错信息
     """
     succeed, failed = [], []
-    with ThreadPoolExecutor(max_workers=30) as thread_pool:
+    with ThreadPoolExecutor(max_workers=20) as thread_pool:
         runs = []
         for obj in objects:
             func = executor_wrapper(obj, func_name)

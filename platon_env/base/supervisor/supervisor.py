@@ -14,38 +14,19 @@ class Supervisor(Process):
     stop_command = 'supervisorctl stop {}'
     update_command = 'supervisorctl update'
 
-    def __init__(self, host):
-        super().__init__(host)
-        # host.set_supervisor(self)
-
     def install(self):
         """ 安装supervisor
-        todo: 有些文件需要创建
-            sudo touch /var/run/supervisor.sock
-            sudo chmod 777 /var/run/supervisor.sock
-            sudo supervisord -c /etc/supervisor/supervisord.conf
         """
         is_installed = self.host.ssh("apt list | grep supervisor")
         if '[installed]' not in str(is_installed):
             self.host.ssh('apt update', sudo=True)
             self.host.ssh('apt install -y --reinstall supervisor', sudo=True)
-            # self.host.ssh('apt update')
-            # self.host.ssh('apt install -y --reinstall supervisor')
             self._upload_config()
         pid = self.host.pid('supervisord')
 
         if not pid:
-            print("not pid")
-            # self.host.ssh('touch /var/run/supervisor.sock', sudo=True)
-
-            # self.host.ssh('service supervisor restart', sudo=True)
             self.host.ssh(f'supervisord -c {self.config_file}', sudo=True)
-            # self.host.ssh('supervisord -c /etc/supervisor/supervisord.conf', sudo=True)
-        # self.host.ssh('touch /var/run/supervisor.sock', sudo=True)
-        # self.host.ssh('chmod 777 /var/run/supervisor.sock', sudo=True)
-        # self.host.ssh('sudo service supervisor restart', sudo=True)
         self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True)
-        print('111')
 
     def uninstall(self):
         """ 卸载supervisor
@@ -89,8 +70,7 @@ class Supervisor(Process):
     def start(self, name):
         """ 启动进程
         """
-        # self.host.ssh(self.start_command.format(name))
-        self.host.ssh(self.start_command.format(name), sudo=True)
+        self.host.ssh(self.start_command.format(name))
 
     def restart(self, name):
         """ 重启进程

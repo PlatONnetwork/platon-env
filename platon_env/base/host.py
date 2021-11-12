@@ -1,4 +1,5 @@
 import os
+from typing import List
 
 from fabric import Connection, Config
 from platon_env.base.supervisor.supervisor import Supervisor
@@ -18,7 +19,7 @@ class Host:
                  password: str = None,
                  port: int = 22,
                  is_superviosr: bool = True,
-                 processes: [Process] = None
+                 processes: List[Process] = None
                  ):
         """
         初始化远程主机对象并尝试连接，支持免密/密码/证书方式。
@@ -37,6 +38,7 @@ class Host:
         self.certificate = certificate
         self.password = password
         self._connection = None
+        self.home_dir = os.path.join('/home', self.username)
         self.tmp_dir = '.env-tmp'
         self.is_superviosr = is_superviosr
         if self.is_superviosr:
@@ -46,7 +48,6 @@ class Host:
             processes = []
         for process in processes:
             self.register(process)
-
 
     def __eq__(self, other):
         if self.ip == other.ip and self.username == other.username:
@@ -60,8 +61,6 @@ class Host:
     def connection(self):
         """ 单例模式连接到服务器,支持免密/密码/证书方式
         """
-        # todo: 支持root模式
-        # if self._connection and self._connection.is_connected():
         if self._connection and self._connection.is_connected:
             return self._connection
 
@@ -75,6 +74,8 @@ class Host:
         return self._connection
 
     def prepare(self):
+        """ 主机环境准备
+        """
         self.supervisor.install()
 
     def pid(self, name):
@@ -105,7 +106,7 @@ class Host:
         """
         return self.ssh(f'test -e {path}', strip=False).ok
 
-    def fast_put(self, local, remote=None):
+    def fast_put(self, local, remote=None, sudo=False):
         """ 使用缓存机制，上传文件到远程主机，以提高上传速度
         # todo: 支持压缩上传
         """
@@ -119,10 +120,8 @@ class Host:
             return tmp_file
         path, _ = os.path.split(remote)
         if not self.file_exist(path):
-        #     self.ssh(f'mkdir -p {path}', sudo=True)
-        # self.ssh(f'cp {tmp_file} {remote}', sudo=True)
-            self.ssh(f'mkdir -p {path}')
-        self.ssh(f'cp {tmp_file} {remote}')
+            self.ssh(f'mkdir -p {path}', sudo=sudo)
+        self.ssh(f'cp {tmp_file} {remote}', sudo=sudo)
 
     def write_file(self, content, file):
         """ 将文本内容写入远程主机的文件，目前仅支持写入新的文件

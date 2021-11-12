@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict
+from typing import List
 
 from platon_env.node import Node
 
@@ -10,6 +10,10 @@ class Genesis:
         self._basic_file = basic_file
         with open(basic_file, mode='r', encoding='utf-8') as file:
             self.data = json.load(file)
+
+    @property
+    def init_node(self):
+        return self.data['config']['cbft']['initialNodes']
 
     def fill_init_nodes(self, nodes: List[Node] = None, content: List[dict] = None):
         """ 填写初始验证人信息，支持传入node对象列表，或者初始验证人信息

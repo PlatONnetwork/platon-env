@@ -1,18 +1,5 @@
-config:
-  platon: file/platon
-  network: private
-  genesis_file: file/genesis.json
-  keystore_dir: file/keystore
-  deploy_dir: platon
-  local_tmp_dir: file/tmp
-  max_threads: 30
-  sync_mode: full
-  log_level: 5
-  append_cmd: ''
-  static_nodes:
-    - 'tests'
-    - 'tests'
 chain:
+  deploy_dir: platon
   username: platon
   password: Platon123!
   ssh_port: 22

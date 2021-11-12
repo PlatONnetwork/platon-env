@@ -1,6 +1,6 @@
 import os
 import tarfile
-from typing import Union
+from typing import Union, List
 
 from loguru import logger
 from paramiko.ssh_exception import SSHException
@@ -12,7 +12,13 @@ from utils.path import join_path
 
 class NodeOpts:
 
-    def __init__(self, rpc_port=None, rpc_api=None, ws_port=None, ws_api=None, extra_opts=None):
+    def __init__(self,
+                 rpc_port: int = None,
+                 rpc_api: str = None,
+                 ws_port: int = None,
+                 ws_api: str = None,
+                 extra_opts: str = None
+                 ):
         self.rpc_port = rpc_port
         self.rpc_api = rpc_api
         self.ws_port = ws_port
@@ -41,17 +47,15 @@ class Node(Process):
                  host: Host,
                  node_id: str,
                  node_key: str,
-                 network: str,
                  p2p_port: int = 16789,
                  bls_pubkey: str = None,
                  bls_prikey: str = None,
                  is_init_node: bool = False,
-                 base_dir: str = None,
+                 base_dir: str = 'platon',
                  ):
         super().__init__(host, base_dir=base_dir, port=p2p_port)
         self.node_id = node_id
         self.node_key = node_key
-        self.network = network
         self.p2p_port = p2p_port
         self.bls_pubkey = bls_pubkey
         self.bls_prikey = bls_prikey
@@ -60,9 +64,9 @@ class Node(Process):
         self.static_nodes = None
         # 部署信息
         self.name = f'p{self.p2p_port}'
-        if not self.base_dir:
-            # todo: 是否需要绝对路径？
-            self.base_dir = self.name
+        self.base_dir = base_dir
+        if os.path.isabs(self.base_dir):
+            self.base_dir = os.path.join(self.host.home_dir, self.base_dir)
         self.deploy_path = join_path(self.base_dir, self.name)
         self.platon = join_path(self.deploy_path, 'platon')
         self.data_dir = join_path(self.deploy_path, 'data')
@@ -97,7 +101,7 @@ class Node(Process):
                 platon: str,
                 network: str,
                 genesis_file: str = None,
-                static_nodes: str = None,
+                static_nodes: List[str] = None,
                 keystore: str = None,
                 options: str = None,
                 ):
@@ -110,7 +114,7 @@ class Node(Process):
         # 准备部署所需的文件
         self.upload_platon(platon)
         self.host.write_file(self.node_key, self.node_key_file)
-        if self.network == 'private':
+        if network == 'private':
             if not genesis_file:
                 raise ValueError('Private network needs genesis file.')
             self.host.fast_put(genesis_file, self.genesis_file)
@@ -187,7 +191,7 @@ class Node(Process):
         else:
             raise FileNotFoundError('keystore not found.')
 
-    def set_static_nodes(self, enodes: [str]):
+    def set_static_nodes(self, enodes: List[str]):
         """ 指定要连接的静态节点，可以指定多个
         """
         for enode in enodes:

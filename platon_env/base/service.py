@@ -1,10 +1,12 @@
+from typing import List
+
 from platon_env.base.process import Process
 
 
 class Service:
     processes: dict = dict()
 
-    def __init__(self, processes: [Process] = None):
+    def __init__(self, processes: List[Process] = None):
         if not processes:
             processes = []
         for process in processes:
@@ -14,7 +16,7 @@ class Service:
         """ 将进程添加到服务，进行统一管理
         """
         if self.processes.get(id(process)):
-            raise Exception()
+            raise Exception('The process already exists.')
 
         self.processes[id(process)] = process
 

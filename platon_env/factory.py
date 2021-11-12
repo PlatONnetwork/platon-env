@@ -2,32 +2,13 @@ import json
 from dataclasses import dataclass, field, asdict
 from typing import List
 from dacite import from_dict
+from ruamel import yaml
 
 from platon_env.base.host import Host
 from platon_env.chain import Chain
 from platon_env.node import Node
 
 from platon_env.utils.key.keytool import gen_node_keypair, gen_bls_keypair
-
-
-@dataclass
-class ConfigData:
-    platon: str
-    network: str
-    genesis_file: str = ''
-    keystore_dir: str = ''
-    deploy_dir: str = ''
-    local_tmp_dir: str = 'tmp'
-    remote_tmp_dir: str = 'tmp'
-    install_dependency: bool = True
-    max_threads: int = 30
-    sync_mode: str = 'fast'
-    log_level: int = 4
-    append_cmd: str = ''
-    static_nodes: List[str] = field(default_factory=[])
-
-    def to_dict(self):
-        return asdict(self)
 
 
 @dataclass
@@ -84,6 +65,7 @@ class NodeGroupData(CommonData):
 
 @dataclass
 class ChainData(CommonData):
+    deploy_dir: str = None
     init: NodeGroupData = None
     normal: NodeGroupData = None
 
@@ -100,13 +82,13 @@ class ChainData(CommonData):
         pass
 
 
-def create_dataclass(cls, _dict):
+def _create_dataclass(cls, _dict):
     """ 将dict数据转换为dataclass对象
     """
     return from_dict(cls, _dict)
 
 
-def save_dataclass(obj, file):
+def _save_dataclass(obj, file):
     """ 将dataclass对象存储为文件
     # todo: 实现存储为yaml文件
     """
@@ -115,37 +97,50 @@ def save_dataclass(obj, file):
         f.write(json.dumps(data, indent=4))
 
 
-def chain_factory(chain_data: ChainData, config: ConfigData):
-    """ 根据dataclass生成chain对象
+def chain_factory(file: str):
+    """ 根据chain配置文件生成chain对象
+    # todo: 支持无密码连接
     """
-    hosts = set()
-    nodes = set()
+    with open(file, encoding='utf-8') as f:
+        data = yaml.load(f)
+    chain_data = _create_dataclass(ChainData, data)
 
+    hosts, nodes = [], []
     for members in chain_data.init.members:
-        host = Host(members.host, members.username, password=members.password, port=members.ssh_port)
-        hosts.add(host)
+        host = Host(members.host,
+                    members.username,
+                    password=members.password,
+                    port=members.ssh_port,
+                    is_superviosr=True,
+                    )
+        hosts.append(host)
         node = Node(host,
                     members.node_id,
                     members.node_key,
-                    config.network,
                     p2p_port=members.p2p_port,
                     bls_pubkey=members.bls_pubkey,
                     bls_prikey=members.bls_prikey,
+                    is_init_node=True,
+                    base_dir=chain_data.deploy_dir,
                     )
-        nodes.add(node)
-
+        nodes.append(node)
     for members in chain_data.normal.members:
-        host = Host(members.host, members.username, password=members.password)
-        hosts.add(host)
+        host = Host(members.host,
+                    members.username,
+                    password=members.password,
+                    port=members.ssh_port,
+                    is_superviosr=True,
+                    )
+        hosts.append(host)
         node = Node(host,
                     members.node_id,
                     members.node_key,
-                    config.network,
                     p2p_port=members.p2p_port,
                     bls_pubkey=members.bls_pubkey,
                     bls_prikey=members.bls_prikey,
-                    is_init_node=False
+                    is_init_node=False,
+                    base_dir=chain_data.deploy_dir,
                     )
-        nodes.add(node)
+        nodes.append(node)
 
     return Chain(nodes)
