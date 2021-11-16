@@ -1,5 +1,7 @@
 import os
 
+from loguru import logger
+
 from platon_env.base.process import Process
 from platon_env.utils.path import join_path
 
@@ -22,9 +24,11 @@ class Supervisor(Process):
             self.host.ssh('apt update', sudo=True)
             self.host.ssh('apt install -y --reinstall supervisor', sudo=True)
             self._upload_config()
-        pid = self.host.pid('supervisord')
+            logger.info(f'Supervisor install success!')
 
+        pid = self.host.pid('supervisord')
         if not pid:
+            # todo: 增加 config_file 不存在的判断
             self.host.ssh(f'supervisord -c {self.config_file}', sudo=True)
         self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True)
 
@@ -32,6 +36,7 @@ class Supervisor(Process):
         """ 卸载supervisor
         """
         self.host.ssh(f'apt remove supervisor', sudo=True)
+        logger.info(f'Supervisor uninstall success!')
 
     def add(self, name, config=None, file=None):
         """ 为supervisor添加要管理的进程，支持name + config的方式，或者直接上传配置文件以添加进程。
@@ -49,7 +54,7 @@ class Supervisor(Process):
     def remove(self, name):
         """ 通过进程名称，删除supervisor管理的进程
         """
-        process_file = os.path.join(self.process_config_path + '/', str(name) + '.conf')
+        process_file = join_path(self.process_config_path, f'{name}.conf')
         self.host.ssh(f'rm -rf {process_file}', sudo=True)
         self.update()
 
@@ -87,5 +92,5 @@ class Supervisor(Process):
         """
         if not file:
             current_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
-            file = os.path.join(current_path, 'supervisor.conf')
+            file = join_path(current_path, 'supervisor.conf')
         self.host.fast_put(file, self.config_file)

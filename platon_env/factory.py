@@ -4,11 +4,10 @@ from typing import List
 from dacite import from_dict
 from ruamel import yaml
 
-from platon_env.base.host import Host
-from platon_env.chain import Chain
-from platon_env.node import Node
+from base.host import Host
+from node import Node
 
-from platon_env.utils.key.keytool import gen_node_keypair, gen_bls_keypair
+from utils.key.keytool import gen_node_keypair, gen_bls_keypair
 
 
 @dataclass
@@ -18,8 +17,7 @@ class CommonData:
     password: str = None
     ssh_port: int = 22
     p2p_port: int = None
-    rpc_port: int = None
-    ws_port: int = None
+    options: str = None
 
     def _fill_member_info(self, node):
         info_dict = asdict(self)
@@ -103,44 +101,47 @@ def chain_factory(file: str):
     """
     with open(file, encoding='utf-8') as f:
         data = yaml.load(f)
-    chain_data = _create_dataclass(ChainData, data)
+    chain_data = _create_dataclass(ChainData, data['chain'])
 
     hosts, nodes = [], []
-    for members in chain_data.init.members:
-        host = Host(members.host,
-                    members.username,
-                    password=members.password,
-                    port=members.ssh_port,
+    for member in chain_data.init.members:
+        host = Host(member.host,
+                    member.username,
+                    password=member.password,
+                    port=member.ssh_port,
                     is_superviosr=True,
                     )
         hosts.append(host)
         node = Node(host,
-                    members.node_id,
-                    members.node_key,
-                    p2p_port=members.p2p_port,
-                    bls_pubkey=members.bls_pubkey,
-                    bls_prikey=members.bls_prikey,
+                    member.node_id,
+                    member.node_key,
+                    p2p_port=member.p2p_port,
+                    bls_pubkey=member.bls_pubkey,
+                    bls_prikey=member.bls_prikey,
+                    options=member.options,
                     is_init_node=True,
                     base_dir=chain_data.deploy_dir,
                     )
         nodes.append(node)
-    for members in chain_data.normal.members:
-        host = Host(members.host,
-                    members.username,
-                    password=members.password,
-                    port=members.ssh_port,
+    for member in chain_data.normal.members:
+        host = Host(member.host,
+                    member.username,
+                    password=member.password,
+                    port=member.ssh_port,
                     is_superviosr=True,
                     )
         hosts.append(host)
         node = Node(host,
-                    members.node_id,
-                    members.node_key,
-                    p2p_port=members.p2p_port,
-                    bls_pubkey=members.bls_pubkey,
-                    bls_prikey=members.bls_prikey,
+                    member.node_id,
+                    member.node_key,
+                    p2p_port=member.p2p_port,
+                    bls_pubkey=member.bls_pubkey,
+                    bls_prikey=member.bls_prikey,
+                    options=member.options,
                     is_init_node=False,
                     base_dir=chain_data.deploy_dir,
                     )
         nodes.append(node)
 
+    from chain import Chain
     return Chain(nodes)

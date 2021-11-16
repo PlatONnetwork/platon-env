@@ -18,7 +18,7 @@ def executor_wrapper(obj, func_name):
         try:
             result = func(*args, **kwargs)
         except Exception as e:
-            return False, error_msg.format(type(obj), obj.tag, func.__name__, e)
+            return False, error_msg.format(type(obj), obj, func.__name__, e)
         return True, result
 
     return wrap_func
@@ -48,4 +48,5 @@ def concurrent_executor(objects, func_name, *args, **kwargs):
         succeed.append(result) if is_succeed else failed.append(result)
     if failed:
         raise Exception(f'executor {func.__name__} failed: {failed}')
+    # todo: 增加对undone的处理
     return succeed

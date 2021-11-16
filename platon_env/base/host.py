@@ -38,7 +38,7 @@ class Host:
         self.certificate = certificate
         self.password = password
         self._connection = None
-        self.home_dir = os.path.join('/home', self.username)
+        self.home_dir = join_path('/home', self.username)
         self.tmp_dir = '.env-tmp'
         self.is_superviosr = is_superviosr
         if self.is_superviosr:
@@ -123,14 +123,16 @@ class Host:
             self.ssh(f'mkdir -p {path}', sudo=sudo)
         self.ssh(f'cp {tmp_file} {remote}', sudo=sudo)
 
-    def write_file(self, content, file):
+    def write_file(self, content: str, file):
         """ 将文本内容写入远程主机的文件，目前仅支持写入新的文件
         # todo： 支持写入已存在的文件，包括覆盖、追加等方式
         """
         path, _ = os.path.split(file)
         if path:
             self.ssh(f'mkdir -p {path}')
-        self.ssh(rf"echo '{content}' > {file}")
+
+        content = str(content).replace('"', r'\"')
+        self.ssh(rf'echo "{content}" > {file}')
 
     def register(self, process: Process):
         """ 将进程注册到主机对象，以便后续管理和使用

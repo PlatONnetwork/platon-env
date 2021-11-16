@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-from platon_env.node import Node
+from node import Node
 
 
 class Genesis:

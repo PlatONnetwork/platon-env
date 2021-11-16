@@ -3,14 +3,15 @@ from typing import Union, List, Set
 from base.host import Host
 from base.service import Service
 from node import Node
-from platon_env.factory import chain_factory
-from platon_env.genesis import Genesis
+from factory import chain_factory
+from genesis import Genesis
 
-from platon_env.node import NodeOpts
+from node import NodeOpts
 from utils.executor import concurrent_executor
 
 
 class Chain(Service):
+    # todo: 对基本参数异常、并发异常进行测试
     hosts: Set[Host] = set()
     init_nodes: Set[Node] = set()
     normal_nodes: Set[Node] = set()
@@ -32,9 +33,9 @@ class Chain(Service):
                 platon: str,
                 network: str,
                 genesis_file: str = None,
-                static_nodes: str = None,
+                static_nodes: List[str] = None,
                 keystore: str = None,
-                options: str = None,
+                options: str = '',
                 nodes: List[Node] = None,
                 ):
         """ 部署链
@@ -42,7 +43,7 @@ class Chain(Service):
         nodes = nodes or self.nodes
         if network == 'private' and genesis_file:
             self.full_genesis_file(genesis_file, nodes)
-            # static_nodes = static_nodes or [node.enode for node in nodes]
+            static_nodes = static_nodes or [node.enode for node in nodes]
 
         return concurrent_executor(nodes,
                                    'install',
@@ -124,9 +125,9 @@ class Chain(Service):
 
     def full_genesis_file(self, genesis_file, nodes: List[Node] = None):
         nodes = nodes or self.nodes
+        init_node = [node for node in nodes if node.is_init_node]
         genesis = Genesis(genesis_file)
-        if not genesis.init_node:
-            init_node = [node for node in nodes if node.is_init_node]
+        if init_node:
             genesis.fill_init_nodes(init_node)
 
         if not genesis.init_node:

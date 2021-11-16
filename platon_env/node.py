@@ -41,6 +41,13 @@ class NodeOpts:
         return str(self)
 
 
+default_opts = NodeOpts(rpc_port=7789,
+                        rpc_api='platon,txpool,net,debug',
+                        ws_port=7790,
+                        ws_api='platon,txpool,net,debug'
+                        )
+
+
 class Node(Process):
 
     def __init__(self,
@@ -50,6 +57,7 @@ class Node(Process):
                  p2p_port: int = 16789,
                  bls_pubkey: str = None,
                  bls_prikey: str = None,
+                 options: Union[str, NodeOpts] = '',
                  is_init_node: bool = False,
                  base_dir: str = 'platon',
                  ):
@@ -59,25 +67,25 @@ class Node(Process):
         self.p2p_port = p2p_port
         self.bls_pubkey = bls_pubkey
         self.bls_prikey = bls_prikey
+        self.options = options
         self.is_init_node = is_init_node
         # 连接信息
         self.static_nodes = None
         # 部署信息
         self.name = f'p{self.p2p_port}'
         self.base_dir = base_dir
-        if os.path.isabs(self.base_dir):
-            self.base_dir = os.path.join(self.host.home_dir, self.base_dir)
+        if not os.path.isabs(self.base_dir):
+            self.base_dir = join_path(self.host.home_dir, self.base_dir)
         self.deploy_path = join_path(self.base_dir, self.name)
         self.platon = join_path(self.deploy_path, 'platon')
-        self.data_dir = join_path(self.deploy_path, 'data')
-        self.keystore_dir = join_path(self.data_dir, 'keystore')
         self.genesis_file = join_path(self.deploy_path, 'genesis.json')
-        self.static_file = join_path(self.deploy_path, 'static-nodes.json')
         self.node_key_file = join_path(self.deploy_path, 'nodekey')
         self.bls_prikey_file = join_path(self.deploy_path, 'blskey')
+        self.data_dir = join_path(self.deploy_path, 'data')
+        self.static_file = join_path(self.data_dir, 'static-nodes.json')
+        self.keystore_dir = join_path(self.data_dir, 'keystore')
         self.log_dir = join_path(self.deploy_path, 'log')
         self.log_file = join_path(self.log_dir, 'platon.log')
-        self.options = ''
         self.supervisor_file = join_path(self.host.supervisor.process_config_path, self.name + '.conf')
 
     def __str__(self):
@@ -95,7 +103,7 @@ class Node(Process):
     def enode(self):
         """ 获取节点的enode信息
         """
-        return f'enode://{self.node_id}@{self.host.ip}:{self.p2p_port}'
+        return f"enode://{self.node_id}@{self.host.ip}:{self.p2p_port}"
 
     def install(self,
                 platon: str,
@@ -103,7 +111,7 @@ class Node(Process):
                 genesis_file: str = None,
                 static_nodes: List[str] = None,
                 keystore: str = None,
-                options: str = None,
+                options: str = '',
                 ):
         """ 使用supervisor部署节点
         """
@@ -129,13 +137,15 @@ class Node(Process):
         # 启动节点
         self.init()
         self.start(options)
+        logger.info(f'Node {self} install success!')
 
     def uninstall(self):
         """ 清理节点，会停止节点并删除节点文件
         """
         self.stop()
-        self.host.ssh(f'rm -rf {self.deploy_path}')
+        self.host.ssh(f'rm -rf {self.deploy_path}', sudo=True)
         self.host.supervisor.remove(self.name)
+        logger.info(f'Node {self} uninstall success!')
 
     def status(self) -> bool:
         """ 获取节点的运行状态
@@ -146,35 +156,38 @@ class Node(Process):
         """ 初始化节点
         """
         self.host.ssh(f'mkdir -p {self.log_dir}')
-        self.host.ssh(f'touch {self.log_file}')
-        outs = self.host.ssh(f'{self.platon} --datadir {self.data_dir} init {self.genesis_file} > {self.log_file}',
-                             warn=False)
-        if outs and ('Fatal' in outs or 'Error' in outs):
-            raise SSHException(outs)
+        result = self.host.ssh(f'{self.platon} --datadir {self.data_dir} init {self.genesis_file}',
+                               warn=False, strip=False)
+        if result.failed or ('Fatal' in result.stderr or 'Error' in result.stderr):
+            raise SSHException(result.stderr)
         logger.info(f'Node {self} init success!')
 
     def start(self, options: Union[str, NodeOpts] = ''):
         """ 使用supervisor启动节点
         """
-        self.options = str(options)
+        self.options = str(options) or str(self.options)
         self.host.supervisor.add(self.name, self.supervisor_config)
         self.host.supervisor.start(self.name)
+        logger.info(f'Node {self} start success!')
 
     def restart(self):
         """ 使用supervisor重启节点
         """
         self.host.supervisor.restart(self.name)
+        logger.info(f'Node {self} restart success!')
 
     def stop(self):
         """ 使用supervisor停止节点
         """
         self.host.supervisor.stop(self.name)
+        logger.info(f'Node {self} stop success!')
 
     def upload_platon(self, platon_file):
         """ 使用缓存上传platon
         """
         self.host.fast_put(platon_file, self.platon)
         self.host.ssh(f'chmod u+x {self.platon}')
+        logger.debug(f'Node {self} upload platon success!')
 
     def upload_keystore(self, keystore: str):
         """ 使用缓存上传keystore，支持单个文件与目录
@@ -190,14 +203,18 @@ class Node(Process):
             self.host.ssh(f'tar xzvf {tmp_file_path} {self.keystore_dir}')
         else:
             raise FileNotFoundError('keystore not found.')
+        logger.debug(f'Node {self} upload keystore success!')
 
     def set_static_nodes(self, enodes: List[str]):
         """ 指定要连接的静态节点，可以指定多个
         """
         for enode in enodes:
-            assert enode.startswith('enode'), 'enode format is incorrect.'
+            assert 'enode://' in enode, 'enode format is incorrect.'
         self.static_nodes = enodes
-        self.host.write_file(self.static_nodes, self.static_file)
+
+        formatted_enodes = str(enodes).replace("'", '"')
+        self.host.write_file(formatted_enodes, self.static_file)
+        logger.debug(f'Node {self} set static nodes success!')
 
     @property
     def supervisor_config(self):
