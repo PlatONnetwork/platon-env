@@ -1,13 +1,14 @@
 import os
+import re
 import tarfile
-from typing import Union, List
+from typing import Union, List, Literal
 
 from loguru import logger
 from paramiko.ssh_exception import SSHException
 
-from base.host import Host
-from base.process import Process
-from utils.path import join_path
+from platon_env.base.host import Host
+from platon_env.base.process import Process
+from platon_env.utils.path import join_path
 
 
 class NodeOpts:
@@ -104,6 +105,24 @@ class Node(Process):
         """ 获取节点的enode信息
         """
         return f"enode://{self.node_id}@{self.host.ip}:{self.p2p_port}"
+
+    def rpc(self, scheme: Literal['ws', 'wss', 'http', 'https', 'ipc'] = 'ws'):
+        """ 获取节点的enode信息
+        """
+        ws_match = re.search('--wsapi (.+?) ', self.options)
+        http_match = re.search('--rpcapi (.+?) ', self.options)
+        ipc_match = re.search('--ipcpath (._?) ', self.options)
+
+        if (scheme == 'ws' or scheme == 'wss') and ws_match:
+            return f"{scheme}://{self.host.ip}:{ws_match.group(1)}"
+
+        if (scheme == 'http' or scheme == 'https') and http_match:
+            return f"{scheme}://{self.host.ip}:{http_match.group(1)}"
+
+        if scheme == 'ipc' and ipc_match:
+            return ipc_match.group(1)
+
+        raise ValueError('scheme is incorrect or the api is not open.')
 
     def install(self,
                 platon: str,

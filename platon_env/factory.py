@@ -4,10 +4,9 @@ from typing import List
 from dacite import from_dict
 from ruamel import yaml
 
-from base.host import Host
-from node import Node
-
-from utils.key.keytool import gen_node_keypair, gen_bls_keypair
+from platon_env.base.host import Host
+from platon_env.node import Node
+from platon_env.utils.key.keytool import gen_node_keypair, gen_bls_keypair
 
 
 @dataclass
