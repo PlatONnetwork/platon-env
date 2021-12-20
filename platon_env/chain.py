@@ -5,8 +5,7 @@ from platon_env.base.service import Service
 from platon_env.node import Node, NodeOpts
 from platon_env.factory import chain_factory
 from platon_env.genesis import Genesis
-
-from utils.executor import concurrent_executor
+from platon_env.utils.executor import concurrent_executor
 
 
 class Chain(Service):

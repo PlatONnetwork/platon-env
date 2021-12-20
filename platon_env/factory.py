@@ -142,5 +142,5 @@ def chain_factory(file: str):
                     )
         nodes.append(node)
 
-    from chain import Chain
+    from platon_env.chain import Chain
     return Chain(nodes)
