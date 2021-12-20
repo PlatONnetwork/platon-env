@@ -2,11 +2,10 @@ from typing import Union, List, Set
 
 from platon_env.base.host import Host
 from platon_env.base.service import Service
-from platon_env.node import Node
+from platon_env.node import Node, NodeOpts
 from platon_env.factory import chain_factory
 from platon_env.genesis import Genesis
 
-from node import NodeOpts
 from utils.executor import concurrent_executor
 
 

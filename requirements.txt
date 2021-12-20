@@ -1,0 +1,5 @@
+dacite>=1.6.0
+fabric>=2.6.0
+loguru>=0.5.3
+paramiko>=2.8.0
+ruamel.base>=1.0.0
