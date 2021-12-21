@@ -109,9 +109,10 @@ class Node(Process):
     def rpc(self, scheme: Literal['ws', 'wss', 'http', 'https', 'ipc'] = 'ws'):
         """ 获取节点的enode信息
         """
-        ws_match = re.search('--wsapi (.+?) ', self.options)
-        http_match = re.search('--rpcapi (.+?) ', self.options)
-        ipc_match = re.search('--ipcpath (._?) ', self.options)
+        options = self.options + ' '      # 在后面添加' '，避免出现miss match
+        ws_match = re.search('--wsport (.+?) ', options)
+        http_match = re.search('--rpcport (.+?) ', options)
+        ipc_match = re.search('--ipcpath (._?) ', options)
 
         if (scheme == 'ws' or scheme == 'wss') and ws_match:
             return f"{scheme}://{self.host.ip}:{ws_match.group(1)}"

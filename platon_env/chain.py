@@ -142,5 +142,5 @@ class Chain(Service):
     def to_file(self):
         """ 通过chain对象，生成chain肖像文件
         """
-        # todo: 带完成编码
+        # todo: 待完成编码
         pass

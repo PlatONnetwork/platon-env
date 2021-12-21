@@ -115,7 +115,11 @@ class Host:
         if not self.file_exist(self.tmp_dir):
             self.ssh(f'mkdir -p {self.tmp_dir}')
         if not self.file_exist(tmp_file):
-            self.connection.put(local, tmp_file)
+            try:
+                self.connection.put(local, tmp_file)
+            except Exception as e:
+                # todo: 按异常类型处理
+                raise Exception(f'fast put {local} to {remote} error: {e}')
         if not remote:
             return tmp_file
         path, _ = os.path.split(remote)
