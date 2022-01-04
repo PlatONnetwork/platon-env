@@ -106,10 +106,22 @@ class Node(Process):
         """
         return f"enode://{self.node_id}@{self.host.ip}:{self.p2p_port}"
 
-    def rpc(self, scheme: Literal['ws', 'wss', 'http', 'https', 'ipc'] = 'ws'):
-        """ 获取节点的enode信息
+    def gql(self, scheme: Literal['ws', 'wss', 'http', 'https'] = 'http'):
+        """ 获取节点的graphql连接信息
+        注意：当前仅支持http方式，其他scheme为超前设计
         """
-        options = self.options + ' '      # 在后面添加' '，避免出现miss match
+        options = self.options + ' '  # 在后面添加' '，避免出现miss match
+        match = re.search('--graphql.port (.+?) ', options)
+
+        if match:
+            return f"{scheme}://{self.host.ip}:{match.group(1)}"
+
+        raise ValueError(f'The {scheme} graphql is not open.')
+
+    def rpc(self, scheme: Literal['ws', 'wss', 'http', 'https', 'ipc'] = 'ws'):
+        """ 获取节点的rpc连接信息
+        """
+        options = self.options + ' '  # 在后面添加' '，避免出现miss match
         ws_match = re.search('--wsport (.+?) ', options)
         http_match = re.search('--rpcport (.+?) ', options)
         ipc_match = re.search('--ipcpath (._?) ', options)
@@ -123,7 +135,7 @@ class Node(Process):
         if scheme == 'ipc' and ipc_match:
             return ipc_match.group(1)
 
-        raise ValueError('scheme is incorrect or the api is not open.')
+        raise ValueError(f'The {scheme} rpc is not open.')
 
     def install(self,
                 platon: str,
