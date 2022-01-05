@@ -114,7 +114,7 @@ class Node(Process):
         match = re.search('--graphql.port (.+?) ', options)
 
         if match:
-            return f"{scheme}://{self.host.ip}:{match.group(1)}"
+            return f"{scheme}://{self.host.ip}:{match.group(1)}/graphql/platon"
 
         raise ValueError(f'The {scheme} graphql is not open.')
 
