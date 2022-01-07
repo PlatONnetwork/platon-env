@@ -157,7 +157,7 @@ class Node(Process):
         if network == 'private':
             if not genesis_file:
                 raise ValueError('Private network needs genesis file.')
-            self.host.fast_put(genesis_file, self.genesis_file)
+            self.host.connection.put(genesis_file, self.genesis_file)
         if self.bls_prikey:
             self.host.write_file(self.bls_prikey, self.bls_prikey_file)
 

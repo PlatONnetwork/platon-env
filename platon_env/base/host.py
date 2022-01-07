@@ -108,6 +108,7 @@ class Host:
 
     def fast_put(self, local, remote=None, sudo=False):
         """ 使用缓存机制，上传文件到远程主机，以提高上传速度
+        # 注意：并发推送时，出现过低概率put失败问题，请慎用
         # todo: 支持压缩上传
         """
         _md5 = md5(local)
@@ -116,6 +117,7 @@ class Host:
             self.ssh(f'mkdir -p {self.tmp_dir}')
         if not self.file_exist(tmp_file):
             try:
+                # todo: 并发推送genesis.json时，在该步骤fabric概率报错，原因尚未找到
                 self.connection.put(local, tmp_file)
             except Exception as e:
                 # todo: 按异常类型处理

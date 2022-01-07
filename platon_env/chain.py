@@ -9,7 +9,6 @@ from platon_env.utils.executor import concurrent_executor
 
 
 class Chain(Service):
-    # todo: 对基本参数异常、并发异常进行测试
     hosts: Set[Host] = set()
     init_nodes: Set[Node] = set()
     normal_nodes: Set[Node] = set()
@@ -122,6 +121,8 @@ class Chain(Service):
         return concurrent_executor(nodes, 'set_static_nodes', enodes)
 
     def full_genesis_file(self, genesis_file, nodes: List[Node] = None):
+        """ 填充创世文件，目前仅填充初始验证节点
+        """
         nodes = nodes or self.nodes
         init_node = [node for node in nodes if node.is_init_node]
         genesis = Genesis(genesis_file)

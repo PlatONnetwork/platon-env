@@ -19,6 +19,7 @@ def executor_wrapper(obj, func_name):
             result = func(*args, **kwargs)
         except Exception as e:
             return False, error_msg.format(type(obj), obj, func.__name__, e)
+        # todo: 正常返回时，增加对应的obj信息
         return True, result
 
     return wrap_func
@@ -33,8 +34,7 @@ def concurrent_executor(objects, func_name, *args, **kwargs):
         args: 方法参数
         kwargs: 关键字参数
     Returns:
-        results: 正常执行成功后的返回信息
-        errors: 出现异常的报错信息
+        succeed: 正常执行成功后的返回信息
     """
     succeed, failed = [], []
     with ThreadPoolExecutor(max_workers=20) as thread_pool:
