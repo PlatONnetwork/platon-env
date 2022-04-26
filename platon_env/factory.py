@@ -18,7 +18,7 @@ class CommonData:
     p2p_port: int = None
     options: str = None
 
-    def _fill_member_info(self, node):
+    def _fill_common_info(self, node):
         info_dict = asdict(self)
         for k, v in info_dict.items():
             if not v:
@@ -53,11 +53,11 @@ class NodeData(CommonData):
 
 @dataclass
 class NodeGroupData(CommonData):
-    members: List[NodeData] = field(default_factory=[])
+    nodes: List[NodeData] = field(default_factory=[])
 
     def __post_init__(self):
-        for member in self.members:
-            self._fill_member_info(member)
+        for node in self.nodes:
+            self._fill_common_info(node)
 
 
 @dataclass
@@ -67,9 +67,12 @@ class ChainData(CommonData):
     normal: NodeGroupData = None
 
     def __post_init__(self):
-        members = self.init.members + self.normal.members
-        for member in members:
-            self._fill_member_info(member)
+        init_nodes = self.init.nodes if self.init else []
+        normal_nodes = self.normal.nodes if self.normal else []
+        nodes = init_nodes + normal_nodes
+
+        for node in nodes:
+            self._fill_common_info(node)
         self.__check_nodes()
 
     def __check_nodes(self):
@@ -103,7 +106,10 @@ def chain_factory(file: str):
     chain_data = _create_dataclass(ChainData, data['chain'])
 
     hosts, nodes = [], []
-    for member in chain_data.init.members:
+
+    # todo: 优化该方法
+    init_nodes = chain_data.init.nodes if chain_data.init else []
+    for member in init_nodes:
         host = Host(member.host,
                     member.username,
                     password=member.password,
@@ -122,7 +128,9 @@ def chain_factory(file: str):
                     base_dir=chain_data.deploy_dir,
                     )
         nodes.append(node)
-    for member in chain_data.normal.members:
+
+    normal_nodes = chain_data.normal.nodes if chain_data.normal else []
+    for member in normal_nodes:
         host = Host(member.host,
                     member.username,
                     password=member.password,

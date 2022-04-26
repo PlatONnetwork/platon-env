@@ -14,7 +14,7 @@ class Supervisor(Process):
     start_command = 'supervisorctl start {}'
     restart_command = 'supervisorctl restart {}'
     stop_command = 'supervisorctl stop {}'
-    update_command = 'supervisorctl update'
+    update_command = 'supervisorctl update {}'
 
     def install(self):
         """ 安装supervisor
@@ -30,7 +30,7 @@ class Supervisor(Process):
         if not pid:
             # todo: 增加 config_file 不存在的判断
             self.host.ssh(f'supervisord -c {self.config_file}', sudo=True, warn=False)
-        self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True, warn=False)
+            self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True)
 
     def uninstall(self):
         """ 卸载supervisor
@@ -49,7 +49,7 @@ class Supervisor(Process):
             self.host.fast_put(file, config_path)
         else:
             raise ValueError('All parameters are not available.')
-        self.update()
+        self.update(name)
 
     def remove(self, name):
         """ 通过进程名称，删除supervisor管理的进程
@@ -66,11 +66,11 @@ class Supervisor(Process):
             return True
         return False
 
-    def update(self):
+    def update(self, name=''):
         """ 更新supervisor的进程列表
         """
         # self.host.connection(self.update_command)
-        self.host.ssh(self.update_command, warn=False)
+        self.host.ssh(self.update_command.format(name), warn=False)
 
     def start(self, name):
         """ 启动进程

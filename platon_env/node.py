@@ -110,11 +110,10 @@ class Node(Process):
         """ 获取节点的graphql连接信息
         注意：当前仅支持http方式，其他scheme为超前设计
         """
-        options = self.options + ' '  # 在后面添加' '，避免出现miss match
-        match = re.search('--graphql.port (.+?) ', options)
+        match = re.search('--graphql', self.options)
 
         if match:
-            return f"{scheme}://{self.host.ip}:{match.group(1)}/graphql/platon"
+            return f"{self.rpc(scheme)}/graphql/platon"
 
         raise ValueError(f'The {scheme} graphql is not open.')
 

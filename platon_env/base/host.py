@@ -110,6 +110,7 @@ class Host:
         """ 使用缓存机制，上传文件到远程主机，以提高上传速度
         # 注意：并发推送时，出现过低概率put失败问题，请慎用
         # todo: 支持压缩上传
+        # todo: 检查文件是否已经缓存的时候，增加判断文件大小
         """
         _md5 = md5(local)
         tmp_file = join_path(self.tmp_dir, _md5)
