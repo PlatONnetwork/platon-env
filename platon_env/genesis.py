@@ -6,9 +6,9 @@ from platon_env.node import Node
 
 class Genesis:
 
-    def __init__(self, basic_file: str = None):
-        self._basic_file = basic_file
-        with open(basic_file, mode='r', encoding='utf-8') as file:
+    def __init__(self, file: str = None):
+        self.file = file
+        with open(file, mode='r', encoding='utf-8') as file:
             self.data = json.load(file)
 
     @property
@@ -33,7 +33,7 @@ class Genesis:
         self.data['alloc'] = accounts
         return self
 
-    def save(self, file):
+    def save_as(self, file):
         """ 保存为本地文件
         """
         with open(file, mode='w', encoding='utf-8') as f:

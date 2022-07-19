@@ -1,4 +1,7 @@
+import os
 from typing import TYPE_CHECKING
+
+from platon_env.utils.path import join_path
 
 if TYPE_CHECKING:
     from platon_env.base.host import Host
@@ -6,14 +9,14 @@ if TYPE_CHECKING:
 
 class Process:
 
-    def __init__(self, host: 'Host', name=None, base_dir=None, port=None, pid=None):
+    def __init__(self, host: 'Host', port=None, pid=None, name=None, base_dir=''):
         self.host = host
-        self.name = name
-        self.base_dir = base_dir
         self.port = port
         self.pid = pid
-        # if self.base_dir:
-        #     self.host.ssh(f'mkdir -p {self.base_dir}',sudo=False)
+        self.name = name
+        self.base_dir = base_dir
+        if self.base_dir and not os.path.isabs(self.base_dir):
+            self.base_dir = join_path(self.host.home_dir, self.base_dir)
 
     def check(self, *args, **kwargs):
         pass

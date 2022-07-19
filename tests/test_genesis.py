@@ -8,7 +8,7 @@ blsPubKey = "5b6ce2480feee69b2007516054a25ace5d7ea2026d271fbdadcc2266f9e21e3e912
 
 def test_fill_init_nodes_and_save():
     genesis.fill_init_nodes(content=[])
-    genesis.save(genesis_file)
+    genesis.save_as(genesis_file)
     assert genesis.data['config']['cbft']['initialNodes'] == []
     genesis.fill_init_nodes(content=[
         {
@@ -16,14 +16,14 @@ def test_fill_init_nodes_and_save():
             "blsPubKey": blsPubKey
         }
     ])
-    genesis.save(genesis_file)
+    genesis.save_as(genesis_file)
     assert genesis.data['config']['cbft']['initialNodes'][0]['node'] == enode
     assert genesis.data['config']['cbft']['initialNodes'][0]['blsPubKey'] == blsPubKey
 
 
 def test_fill_accounts():
     genesis.fill_accounts(accounts={})
-    genesis.save(genesis_file)
+    genesis.save_as(genesis_file)
     assert genesis.data['alloc'] == {}
     accounts = {
         "atp1zkrxx6rf358jcvr7nruhyvr9hxpwv9uncjmns0": {
@@ -37,5 +37,5 @@ def test_fill_accounts():
         }
     }
     genesis.fill_accounts(accounts)
-    genesis.save(genesis_file)
+    genesis.save_as(genesis_file)
     assert genesis.data['alloc'] == accounts

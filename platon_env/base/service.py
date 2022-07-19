@@ -4,9 +4,10 @@ from platon_env.base.process import Process
 
 
 class Service:
-    processes: dict = dict()
 
     def __init__(self, processes: List[Process] = None):
+        self.processes: dict = dict()
+
         if not processes:
             processes = []
         for process in processes:

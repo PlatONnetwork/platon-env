@@ -28,7 +28,7 @@ genesis.fill_init_nodes(content=[
         "blsPubKey": "5b6ce2480feee69b2007516054a25ace5d7ea2026d271fbdadcc2266f9e21e3e912f7d770c85f45385ba44e673e22b0db5ef5af1f57adf75d9b1b7628748d33a4a57ee2c8c7236691e579d219d42e1d875e084359acb8231fbc3da8ae400200e"
     }])
 
-genesis.save(genesis_file)
+genesis.save_as(genesis_file)
 
 base_dir = '/home/shing'
 host = Host('192.168.21.42', 'shing', password='aa123456')

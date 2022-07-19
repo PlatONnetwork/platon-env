@@ -1,82 +1,52 @@
 import os
 import re
 import tarfile
-from typing import Union, List, Literal
+from typing import List, Literal
 
 from loguru import logger
 from paramiko.ssh_exception import SSHException
+from platon_aide import Aide
 
 from platon_env.base.host import Host
 from platon_env.base.process import Process
 from platon_env.utils.path import join_path
 
 
-class NodeOpts:
-
-    def __init__(self,
-                 rpc_port: int = None,
-                 rpc_api: str = None,
-                 ws_port: int = None,
-                 ws_api: str = None,
-                 extra_opts: str = None
-                 ):
-        self.rpc_port = rpc_port
-        self.rpc_api = rpc_api
-        self.ws_port = ws_port
-        self.ws_api = ws_api
-        self.extra_opts = extra_opts
-
-    def __str__(self):
-        string = ''
-        if self.rpc_port:
-            assert self.rpc_api, 'The RPC API is not defined.'
-            string += f'--rpc --rpcaddr 0.0.0.0 --rpcport {self.rpc_port} --rpcapi {self.rpc_api} '
-        if self.ws_port:
-            assert self.ws_api, 'The WS API is not defined.'
-            string += f'--ws --wsaddr 0.0.0.0 --wsport {self.rpc_port} --wsapi {self.rpc_api} '
-        if self.extra_opts:
-            string += self.extra_opts
-        return string
-
-    def to_string(self):
-        return str(self)
-
-
-default_opts = NodeOpts(rpc_port=7789,
-                        rpc_api='platon,txpool,net,debug',
-                        ws_port=7790,
-                        ws_api='platon,txpool,net,debug'
-                        )
-
-
 class Node(Process):
 
     def __init__(self,
                  host: Host,
-                 node_id: str,
-                 node_key: str,
+                 platon: str,
+                 network: str,
+                 genesis_file: str = None,
+                 keystore: str = None,
                  p2p_port: int = 16789,
+                 node_id: str = None,
+                 node_key: str = None,
                  bls_pubkey: str = None,
                  bls_prikey: str = None,
-                 options: Union[str, NodeOpts] = '',
+                 static_nodes: List[str] = None,
                  is_init_node: bool = False,
+                 options: str = '',
+                 ssl: bool = False,
                  base_dir: str = 'platon',
                  ):
-        super().__init__(host, base_dir=base_dir, port=p2p_port)
+        super().__init__(host, port=p2p_port, name=f'p{p2p_port}', base_dir=base_dir)
+        # 本地文件信息
+        self.loc_platon = platon
+        self.loc_genesis = genesis_file
+        self.loc_keystore = keystore
+        # 节点信息
+        self.network = network
         self.node_id = node_id
         self.node_key = node_key
-        self.p2p_port = p2p_port
         self.bls_pubkey = bls_pubkey
         self.bls_prikey = bls_prikey
+        self.p2p_port = p2p_port
         self.options = options
+        self.static_nodes = static_nodes
         self.is_init_node = is_init_node
-        # 连接信息
-        self.static_nodes = None
-        # 部署信息
-        self.name = f'p{self.p2p_port}'
-        self.base_dir = base_dir
-        if not os.path.isabs(self.base_dir):
-            self.base_dir = join_path(self.host.home_dir, self.base_dir)
+        # 远程部署信息
         self.deploy_path = join_path(self.base_dir, self.name)
         self.platon = join_path(self.deploy_path, 'platon')
         self.genesis_file = join_path(self.deploy_path, 'genesis.json')
@@ -88,6 +58,9 @@ class Node(Process):
         self.log_dir = join_path(self.deploy_path, 'log')
         self.log_file = join_path(self.log_dir, 'platon.log')
         self.supervisor_file = join_path(self.host.supervisor.process_config_path, self.name + '.conf')
+        # 接口信息
+        self.ssl = ssl
+        self.current_aide: Aide = None
 
     def __str__(self):
         return f'{self.host.ip}:{self.p2p_port}'
@@ -106,7 +79,7 @@ class Node(Process):
         """
         return f"enode://{self.node_id}@{self.host.ip}:{self.p2p_port}"
 
-    def gql(self, scheme: Literal['ws', 'wss', 'http', 'https'] = 'http'):
+    def gql(self, scheme: Literal['ws', 'http'] = None):
         """ 获取节点的graphql连接信息
         注意：当前仅支持http方式，其他scheme为超前设计
         """
@@ -117,57 +90,87 @@ class Node(Process):
 
         raise ValueError(f'The {scheme} graphql is not open.')
 
-    def rpc(self, scheme: Literal['ws', 'wss', 'http', 'https', 'ipc'] = 'ws'):
+    def rpc(self, scheme: Literal['ws', 'http'] = None):
         """ 获取节点的rpc连接信息
         """
         options = self.options + ' '  # 在后面添加' '，避免出现miss match
         ws_match = re.search('--wsport (.+?) ', options)
         http_match = re.search('--rpcport (.+?) ', options)
-        ipc_match = re.search('--ipcpath (._?) ', options)
 
-        if (scheme == 'ws' or scheme == 'wss') and ws_match:
+        if (scheme == 'ws' or not scheme) and ws_match:
+            if self.ssl:
+                scheme = 'wss'
             return f"{scheme}://{self.host.ip}:{ws_match.group(1)}"
 
-        if (scheme == 'http' or scheme == 'https') and http_match:
+        if (scheme == 'http' or not scheme) and http_match:
+            if self.ssl:
+                scheme = 'https'
             return f"{scheme}://{self.host.ip}:{http_match.group(1)}"
 
-        if scheme == 'ipc' and ipc_match:
+        raise ValueError(f'The rpc is not open.')
+
+    @property
+    def ipc(self):
+        """ 获取节点的rpc连接信息
+        """
+        options = self.options + ' '  # 在后面添加' '，避免出现mis
+        ipc_match = re.search('--ipcpath (._?) ', options)
+
+        if ipc_match:
             return ipc_match.group(1)
 
-        raise ValueError(f'The {scheme} rpc is not open.')
+        raise ValueError(f'The ipc is not open.')
+
+    @property
+    def aide(self):
+        if not self.current_aide:
+            self.current_aide = Aide(self.rpc(), self.gql())
+
+        return self.current_aide
 
     def install(self,
-                platon: str,
-                network: str,
+                platon: str = None,
+                network: str = None,
                 genesis_file: str = None,
-                static_nodes: List[str] = None,
                 keystore: str = None,
+                static_nodes: List[str] = None,
                 options: str = '',
                 ):
         """ 使用supervisor部署节点
         """
         if not self.host.supervisor:
             raise Exception("supervisor not install.")
-        self.uninstall()
-
+        # 可指定参数
+        platon = platon or self.loc_platon
+        genesis_file = genesis_file or self.loc_genesis
+        keystore = keystore or self.loc_keystore
+        network = network or self.network
+        static_nodes = static_nodes or self.static_nodes
+        options = options or self.options
         # 准备部署所需的文件
+        self.uninstall()
         self.upload_platon(platon)
+        # todo: 判断节点一定存在节点私钥, 没有则生成
         self.host.write_file(self.node_key, self.node_key_file)
+        # todo: 判断初始节点一定存在bls私钥, 没有则生成
+        if self.bls_prikey:
+            self.host.write_file(self.bls_prikey, self.bls_prikey_file)
+
         if network == 'private':
             if not genesis_file:
                 raise ValueError('Private network needs genesis file.')
             self.host.connection.put(genesis_file, self.genesis_file)
-        if self.bls_prikey:
-            self.host.write_file(self.bls_prikey, self.bls_prikey_file)
-
-        if static_nodes:
-            self.set_static_nodes(static_nodes)
         if keystore:
             self.upload_keystore(keystore)
+        if static_nodes:
+            self.set_static_nodes(static_nodes)
 
+        # 重置接口信息
+        self.current_aide = None
         # 启动节点
         self.init()
         self.start(options)
+
         logger.info(f'Node {self} install success!')
 
     def uninstall(self):
@@ -193,10 +196,10 @@ class Node(Process):
             raise SSHException(result.stderr)
         logger.info(f'Node {self} init success!')
 
-    def start(self, options: Union[str, NodeOpts] = ''):
+    def start(self, options: str = ''):
         """ 使用supervisor启动节点
         """
-        self.options = str(options) or str(self.options)
+        self.options = options or self.options
         self.host.supervisor.add(self.name, self.supervisor_config)
         self.host.supervisor.start(self.name)
         logger.info(f'Node {self} start success!')
@@ -231,7 +234,8 @@ class Node(Process):
             tar.add(keystore, arcname=os.path.basename(keystore))
             tar.close()
             tmp_file_path = self.host.fast_put(tar_file)
-            self.host.ssh(f'tar xzvf {tmp_file_path} {self.keystore_dir}')
+            self.host.ssh(f'mkdir -p {self.data_dir}')
+            self.host.ssh(f'tar xzvf {tmp_file_path} -C {self.data_dir}')
         else:
             raise FileNotFoundError('keystore not found.')
         logger.debug(f'Node {self} upload keystore success!')

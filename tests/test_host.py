@@ -4,8 +4,10 @@ from platon_env.base.host import Host
 from platon_env.utils.md5 import md5
 
 # host = Host('192.168.16.121', 'juzix', password='123456')
-host = Host('192.168.21.42', 'shing', password='aa123456')
-base_dir = '/home/shing'
+host = Host('192.168.120.121', 'platon', password='Platon123!')
+host2 = Host('192.168.120.121', 'platon', password='Platon123!')
+host3 = Host('192.168.120.121', 'platon', password='Platon123!')
+base_dir = '/home/platon'
 
 
 def test_pid():
@@ -14,19 +16,17 @@ def test_pid():
 
 
 def test_ssh():
-    # result = host.ssh('ls')
-    # assert type(result) is str
     host.ssh('mkdir tests')
     dir_list = host.ssh('ls')
     assert 'tests' in dir_list
 
 
-def test_is_exist():
+def test_file_exist():
     assert host.file_exist(base_dir)
     assert host.file_exist(base_dir + "/hello") is False
 
 
-def test_put_via_tmp():
+def test_fast_put():
     platon_bin = 'file/platon'
     tmp_file = host.fast_put(platon_bin)
     tem_dir, md5_value = tmp_file.split('/')[0], tmp_file.split('/')[1]
@@ -36,18 +36,31 @@ def test_put_via_tmp():
     assert result is None
 
 
-def test_save_to_file():
+def test_concurrent_fast_put():
+    local = 'file/genesis.json'
+    remote = base_dir + '/fast_put_debug/genesis.json'
+    hosts = [host, host2, host3]
+
+    from platon_env.utils.executor import concurrent_executor
+    concurrent_executor(hosts, 'fast_put', local, remote)
+
+
+def test_write_file():
     result = host.write_file('hello world', '/home/juzix/test.txt')
     assert result is None
 
 
-def test_add_to_platon():
+def test_register():
     pass
 
 
-def test_add_to_alaya():
+def test_unregister():
     pass
 
 
-def test_add_to_private_chain():
+def test_get_processes():
+    pass
+
+
+def test_set_supervisor():
     pass

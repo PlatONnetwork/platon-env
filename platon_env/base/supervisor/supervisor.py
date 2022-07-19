@@ -36,7 +36,7 @@ class Supervisor(Process):
         """ 卸载supervisor
         """
         self.host.ssh(f'apt remove supervisor', sudo=True, warn=False)
-        logger.info(f'Supervisor uninstall success!')
+        logger.info(f'Supervisor {self.host.ip} uninstall success!')
 
     def add(self, name, config=None, file=None):
         """ 为supervisor添加要管理的进程，支持name + config的方式，或者直接上传配置文件以添加进程。
@@ -56,7 +56,7 @@ class Supervisor(Process):
         """
         process_file = join_path(self.process_config_path, f'{name}.conf')
         self.host.ssh(f'rm -rf {process_file}', sudo=True, warn=False)
-        self.update()
+        self.update(name)
 
     def status(self, name='') -> bool:
         """ 通过进程名称，查看进程状态
@@ -69,7 +69,6 @@ class Supervisor(Process):
     def update(self, name=''):
         """ 更新supervisor的进程列表
         """
-        # self.host.connection(self.update_command)
         self.host.ssh(self.update_command.format(name), warn=False)
 
     def start(self, name):
@@ -93,4 +92,4 @@ class Supervisor(Process):
         if not file:
             current_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
             file = join_path(current_path, 'supervisor.conf')
-        self.host.fast_put(file, self.config_file)
+        self.host.fast_put(file, self.config_file, sudo=True)

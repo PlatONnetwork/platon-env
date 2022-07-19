@@ -1,21 +1,32 @@
 chain:
+  platon: tests/file/platon
+  network: private
+  genesis: tests/file/genesis.json
+  keystore: tests/file/keystore
+  static_nodes:
+    - ''
+    - ''
+  ssl: false
   deploy_dir: chain
-  username: platon
-  password: Platon123!
-  ssh_port: 22
   init:
+    username: platon
+    password: Platon123!
+    ssh_port: 22
     p2p_port: 16789
     options: '--rpc --rpcaddr 0.0.0.0 --rpcport 6789 --rpcapi web3,platon,txpool,net,admin,personal,debug --ws --wsaddr 0.0.0.0 --wsport 6790 --wsorigins "*" --wsapi web3,platon,txpool,net,admin,personal,debug'
-    members:
-    - host: 192.168.120.121
-    - host: 192.168.120.122
-    - host: 192.168.120.123
-    - host: 192.168.120.124
+    nodes:
+    - host: 192.168.10.221
+    - host: 192.168.10.222
+    - host: 192.168.10.223
+    - host: 192.168.10.224
   normal:
+    username: platon
+    password: Platon123!
+    ssh_port: 22
     p2p_port: 17789
     options: '--rpc --rpcaddr 0.0.0.0 --rpcport 7789 --rpcapi web3,platon,txpool,net,admin,personal,debug --ws --wsaddr 0.0.0.0 --wsport 7790 --wsorigins "*" --wsapi web3,platon,txpool,net,admin,personal,debug'
-    members:
-    - host: 192.168.120.121
-    - host: 192.168.120.122
-    - host: 192.168.120.123
-    - host: 192.168.120.124
+    nodes:
+    - host: 192.168.10.221
+    - host: 192.168.10.222
+    - host: 192.168.10.223
+    - host: 192.168.10.224

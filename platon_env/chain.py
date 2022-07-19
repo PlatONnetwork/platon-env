@@ -1,22 +1,23 @@
-from typing import Union, List, Set
+from typing import List
 
 from platon_env.base.host import Host
 from platon_env.base.service import Service
-from platon_env.node import Node, NodeOpts
-from platon_env.factory import chain_factory
+from platon_env.node import Node
+from factory.factory import chain_factory
 from platon_env.genesis import Genesis
 from platon_env.utils.executor import concurrent_executor
 
 
 class Chain(Service):
-    hosts: Set[Host] = set()
-    init_nodes: Set[Node] = set()
-    normal_nodes: Set[Node] = set()
 
     def __init__(self, nodes: List[Node] = None):
         """ 初始化chain对象
         """
         super().__init__()
+        self.hosts: List[Host] = []
+        self.init_nodes: List[Node] = []
+        self.normal_nodes: List[Node] = []
+
         if not nodes:
             nodes = []
         for node in nodes:
@@ -24,11 +25,30 @@ class Chain(Service):
 
     @property
     def nodes(self):
-        return set.union(self.init_nodes, self.normal_nodes)
+        return self.init_nodes + self.normal_nodes
+
+    @property
+    def consensus_nodes(self):
+        """ 实时链上共识节点
+        """
+        # todo: coding
+        return None
+
+    @property
+    def aides(self):
+        """ nodes对应的aides
+        """
+        return self.get_aides(self.nodes)
+
+    @staticmethod
+    def get_aides(nodes: List[Node]):
+        """ 获取aide对象列表
+        """
+        return [node.aide for node in nodes]
 
     def install(self,
-                platon: str,
-                network: str,
+                platon: str = None,
+                network: str = None,
                 genesis_file: str = None,
                 static_nodes: List[str] = None,
                 keystore: str = None,
@@ -38,17 +58,17 @@ class Chain(Service):
         """ 部署链
         """
         nodes = nodes or self.nodes
-        if network == 'private' and genesis_file:
+        if genesis_file:
             self.full_genesis_file(genesis_file, nodes)
-            static_nodes = static_nodes or [node.enode for node in nodes]
+        static_nodes = static_nodes or [node.enode for node in nodes]
 
         return concurrent_executor(nodes,
                                    'install',
                                    platon,
                                    network,
                                    genesis_file,
-                                   static_nodes,
                                    keystore,
+                                   static_nodes,
                                    options,
                                    )
 
@@ -64,8 +84,14 @@ class Chain(Service):
         if self.processes.get(id(node)):
             raise Exception('The node already exists.')
 
-        self.init_nodes.add(node) if node.is_init_node else self.normal_nodes.add(node)
-        self.hosts.add(node.host)
+        if node.is_init_node and not self.init_nodes.count(node):
+            self.init_nodes.append(node)
+
+        if not node.is_init_node and not self.normal_nodes.count(node):
+            self.normal_nodes.append(node)
+
+        if not self.hosts.count(node.host):
+            self.hosts.append(node.host)
 
         self.processes[id(node)] = node
 
@@ -82,7 +108,7 @@ class Chain(Service):
         return concurrent_executor(nodes, 'init')
 
     def start(self,
-              options: Union[str, NodeOpts] = '',
+              options: str = '',
               nodes: List[Node] = None,
               ):
         """ 启动链
@@ -123,16 +149,17 @@ class Chain(Service):
     def full_genesis_file(self, genesis_file, nodes: List[Node] = None):
         """ 填充创世文件，目前仅填充初始验证节点
         """
+        genesis = Genesis(genesis_file)
+        if genesis.init_node:
+            return
         nodes = nodes or self.nodes
         init_node = [node for node in nodes if node.is_init_node]
-        genesis = Genesis(genesis_file)
-        if init_node:
-            genesis.fill_init_nodes(init_node)
+        genesis.fill_init_nodes(init_node)
 
         if not genesis.init_node:
             raise ValueError('the genesis file init node is empty, and no init node in the nodes argument.')
 
-        genesis.save(genesis_file)
+        genesis.save_as(genesis_file)
 
     @staticmethod
     def from_file(file):

@@ -61,34 +61,25 @@ class NodeGroupData(CommonData):
 
 
 @dataclass
-class ChainData(CommonData):
+class ChainData:
+    platon: str
+    network: str
+    genesis: str
+    keystore: str
+    ssl: bool
+    static_nodes: List[str] = field(default_factory=[])
     deploy_dir: str = None
     init: NodeGroupData = None
     normal: NodeGroupData = None
 
-    def __post_init__(self):
-        init_nodes = self.init.nodes if self.init else []
-        normal_nodes = self.normal.nodes if self.normal else []
-        nodes = init_nodes + normal_nodes
 
-        for node in nodes:
-            self._fill_common_info(node)
-        self.__check_nodes()
-
-    def __check_nodes(self):
-        """ 检查节点信息是否完善与正确
-        """
-        # todo: 完成编码
-        pass
-
-
-def _create_dataclass(cls, _dict):
+def create_dataclass(cls, _dict):
     """ 将dict数据转换为dataclass对象
     """
     return from_dict(cls, _dict)
 
 
-def _save_dataclass(obj, file):
+def save_dataclass(obj, file):
     """ 将dataclass对象存储为文件
     # todo: 实现存储为yaml文件
     """
@@ -102,12 +93,11 @@ def chain_factory(file: str):
     # todo: 支持无密码连接
     """
     with open(file, encoding='utf-8') as f:
-        data = yaml.load(f)
-    chain_data = _create_dataclass(ChainData, data['chain'])
+        data = yaml.load(f, Loader=yaml.Loader)
+    chain_data = create_dataclass(ChainData, data['chain'])
 
-    hosts, nodes = [], []
-
-    # todo: 优化该方法
+    nodes = []
+    # todo: 增加host去重
     init_nodes = chain_data.init.nodes if chain_data.init else []
     for member in init_nodes:
         host = Host(member.host,
@@ -116,15 +106,19 @@ def chain_factory(file: str):
                     port=member.ssh_port,
                     is_superviosr=True,
                     )
-        hosts.append(host)
         node = Node(host,
-                    member.node_id,
-                    member.node_key,
+                    chain_data.platon,
+                    chain_data.network,
+                    genesis_file=chain_data.genesis,
+                    keystore=chain_data.keystore,
                     p2p_port=member.p2p_port,
+                    node_id=member.node_id,
+                    node_key=member.node_key,
                     bls_pubkey=member.bls_pubkey,
                     bls_prikey=member.bls_prikey,
-                    options=member.options,
                     is_init_node=True,
+                    options=member.options,
+                    ssl=chain_data.ssl,
                     base_dir=chain_data.deploy_dir,
                     )
         nodes.append(node)
@@ -137,15 +131,19 @@ def chain_factory(file: str):
                     port=member.ssh_port,
                     is_superviosr=True,
                     )
-        hosts.append(host)
         node = Node(host,
-                    member.node_id,
-                    member.node_key,
+                    chain_data.platon,
+                    chain_data.network,
+                    genesis_file=chain_data.genesis,
+                    keystore=chain_data.keystore,
                     p2p_port=member.p2p_port,
+                    node_id=member.node_id,
+                    node_key=member.node_key,
                     bls_pubkey=member.bls_pubkey,
                     bls_prikey=member.bls_prikey,
-                    options=member.options,
                     is_init_node=False,
+                    options=member.options,
+                    ssl=chain_data.ssl,
                     base_dir=chain_data.deploy_dir,
                     )
         nodes.append(node)
