@@ -1,16 +1,16 @@
 import os
-from typing import List
+import random
+import time
 
 from fabric import Connection, Config
+from loguru import logger
+
 from platon_env.base.supervisor.supervisor import Supervisor
 from platon_env.utils.md5 import md5
 from platon_env.utils.path import join_path
-from platon_env.base.process import Process
 
 
 class Host:
-    supervisor: Supervisor = None
-    processes: dict = dict()
 
     def __init__(self,
                  ip: str,
@@ -19,7 +19,6 @@ class Host:
                  password: str = None,
                  port: int = 22,
                  is_superviosr: bool = True,
-                 processes: List[Process] = None
                  ):
         """
         初始化远程主机对象并尝试连接，支持免密/密码/证书方式。
@@ -31,6 +30,7 @@ class Host:
             password: 密码/证书密码
             port: ssh端口
             processes: 要注册的进程
+            is_superviosr: 是否安装superviosr（用于管理进程）
         """
         self.ip = ip
         self.port = port
@@ -43,11 +43,7 @@ class Host:
         self.is_superviosr = is_superviosr
         if self.is_superviosr:
             self.supervisor = Supervisor(self)
-            self.prepare()
-        if not processes:
-            processes = []
-        for process in processes:
-            self.register(process)
+            self.supervisor.install()
 
     def __eq__(self, other):
         if self.ip == other.ip and self.username == other.username:
@@ -102,27 +98,39 @@ class Host:
         return result
 
     def file_exist(self, path):
-        """ 判断文件是否已存在于远程主机
+        """ 判断目录或文件是否已存在于远程主机
         """
+        time.sleep(random.randint(1, 3))
         return self.ssh(f'test -e {path}', strip=False).ok
 
     def fast_put(self, local, remote=None, sudo=False):
         """ 使用缓存机制，上传文件到远程主机，以提高上传速度
         # 注意：并发推送时，出现过低概率put失败问题，请慎用
         # todo: 支持压缩上传
-        # todo: 检查文件是否已经缓存的时候，增加判断文件大小
         """
         _md5 = md5(local)
         tmp_file = join_path(self.tmp_dir, _md5)
         if not self.file_exist(self.tmp_dir):
             self.ssh(f'mkdir -p {self.tmp_dir}')
-        if not self.file_exist(tmp_file):
-            try:
-                # todo: 并发推送genesis.json时，在该步骤fabric概率报错，原因尚未找到
+
+        # 上传文件到缓存目录，如果文件已存在，则校验文件md5
+        def put():
+            if not self.file_exist(tmp_file):
                 self.connection.put(local, tmp_file)
-            except Exception as e:
-                # todo: 按异常类型处理
-                raise Exception(f'fast put {local} to {remote} error: {e}')
+            else:
+                # 循环校验文件md5, 校验不通过则等待(可能其他线程正在上传中)，最多等待180s
+                for _ in range(60):
+                    stdout = self.ssh(f'md5sum {tmp_file}')
+                    if _md5 in stdout.split(' ')[0]:
+                        break
+                    time.sleep(3)
+
+        try:
+            put()
+        except Exception as e:
+            # todo: 按异常类型处理
+            raise Exception(f'fast put {local} to {remote} error: {e}')
+
         if not remote:
             return tmp_file
         path, _ = os.path.split(remote)
@@ -140,36 +148,6 @@ class Host:
 
         content = str(content).replace('"', r'\"')
         self.ssh(rf'echo "{content}" > {file}')
-
-    def register(self, process: Process):
-        """ 将进程注册到主机对象，以便后续管理和使用
-        """
-        if self.processes.get(process.name):
-            raise Exception()
-
-        self.processes[process.name] = process
-
-    def unregister(self, name):
-        """ 通过进程名字，删除远程主机上的进程注册信息
-        """
-        self.processes.pop(name)
-
-    def get_processes(self, **kwargs):
-        """ 通过进程属性，获取进程对象，可以同时匹配多个
-        """
-        processes = []
-
-        def match(process: Process):
-            for key, value in kwargs:
-                if process.__getattribute__(key) == value:
-                    return process
-
-        for process in self.processes:
-            matched = match(process)
-            if matched:
-                processes.append(matched)
-
-        return processes
 
     def set_supervisor(self, supervisor: Supervisor):
         self.supervisor = supervisor
