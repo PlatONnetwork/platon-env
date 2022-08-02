@@ -3,7 +3,7 @@ from typing import List
 from platon_env.base.host import Host
 from platon_env.base.service import Service
 from platon_env.node import Node
-from factory.factory import chain_factory
+from platon_env.factory.factory import chain_factory
 from platon_env.genesis import Genesis
 from platon_env.utils.executor import concurrent_executor
 
