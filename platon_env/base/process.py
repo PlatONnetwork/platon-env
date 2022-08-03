@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 
-from platon_env.utils.path import join_path
+from platon_env.utils import join_path
 
 if TYPE_CHECKING:
     from platon_env.base.host import Host

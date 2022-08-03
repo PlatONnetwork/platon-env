@@ -6,8 +6,8 @@ from fabric import Connection, Config
 from loguru import logger
 
 from platon_env.base.supervisor.supervisor import Supervisor
-from platon_env.utils.md5 import md5
-from platon_env.utils.path import join_path
+from platon_env.utils import md5
+from platon_env.utils import join_path
 
 
 class Host:
@@ -105,8 +105,6 @@ class Host:
 
     def fast_put(self, local, remote=None, sudo=False):
         """ 使用缓存机制，上传文件到远程主机，以提高上传速度
-        # 注意：并发推送时，出现过低概率put失败问题，请慎用
-        # todo: 支持压缩上传
         """
         _md5 = md5(local)
         tmp_file = join_path(self.tmp_dir, _md5)

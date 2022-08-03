@@ -1,6 +1,5 @@
 import os
 import re
-import tarfile
 from typing import List, Literal
 
 from loguru import logger
@@ -9,7 +8,8 @@ from platon_aide import Aide
 
 from platon_env.base.host import Host
 from platon_env.base.process import Process
-from platon_env.utils.path import join_path
+from platon_env.utils import join_path, do_once
+from utils import tar_files
 
 
 class Node(Process):
@@ -230,9 +230,7 @@ class Node(Process):
             self.host.fast_put(keystore, self.keystore_dir)
         elif os.path.isdir(keystore):
             tar_file = keystore + '.tar.gz'
-            tar = tarfile.open(tar_file, "w:gz")
-            tar.add(keystore, arcname=os.path.basename(keystore))
-            tar.close()
+            do_once(tar_files, source=keystore, dest=tar_file)
             tmp_file_path = self.host.fast_put(tar_file)
             self.host.ssh(f'mkdir -p {self.data_dir}')
             self.host.ssh(f'tar xzvf {tmp_file_path} -C {self.data_dir}')

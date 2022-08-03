@@ -10,13 +10,14 @@ from platon_env.utils.executor import concurrent_executor
 
 class Chain(Service):
 
-    def __init__(self, nodes: List[Node] = None):
+    def __init__(self, nodes: List[Node] = None, genesis_file: str = None):
         """ 初始化chain对象
         """
         super().__init__()
         self.hosts: List[Host] = []
         self.init_nodes: List[Node] = []
         self.normal_nodes: List[Node] = []
+        self.genesis_file = genesis_file
 
         if not nodes:
             nodes = []
@@ -58,6 +59,7 @@ class Chain(Service):
         """ 部署链
         """
         nodes = nodes or self.nodes
+        genesis_file = genesis_file or self.genesis_file
         if genesis_file:
             self.full_genesis_file(genesis_file, nodes)
         static_nodes = static_nodes or [node.enode for node in nodes]
@@ -149,12 +151,11 @@ class Chain(Service):
     def full_genesis_file(self, genesis_file, nodes: List[Node] = None):
         """ 填充创世文件，目前仅填充初始验证节点
         """
-        genesis = Genesis(genesis_file)
-        if genesis.init_node:
-            return
         nodes = nodes or self.nodes
         init_node = [node for node in nodes if node.is_init_node]
-        genesis.fill_init_nodes(init_node)
+        genesis = Genesis(genesis_file)
+        if init_node:
+            genesis.fill_init_nodes(init_node)
 
         if not genesis.init_node:
             raise ValueError('the genesis file init node is empty, and no init node in the nodes argument.')

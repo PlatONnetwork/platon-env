@@ -3,7 +3,7 @@ import os
 from loguru import logger
 
 from platon_env.base.process import Process
-from platon_env.utils.path import join_path
+from platon_env.utils import join_path
 
 
 class Supervisor(Process):

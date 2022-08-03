@@ -149,4 +149,4 @@ def chain_factory(file: str):
         nodes.append(node)
 
     from platon_env.chain import Chain
-    return Chain(nodes)
+    return Chain(nodes, genesis_file=chain_data.genesis)
