@@ -9,7 +9,7 @@ from platon_aide import Aide
 from platon_env.base.host import Host
 from platon_env.base.process import Process
 from platon_env.utils import join_path, do_once
-from utils import tar_files
+from platon_env.utils import tar_files
 
 
 class Node(Process):
@@ -88,7 +88,7 @@ class Node(Process):
         if match:
             return f"{self.rpc(scheme)}/graphql/platon"
 
-        raise ValueError(f'The {scheme} graphql is not open.')
+        return None
 
     def rpc(self, scheme: Literal['ws', 'http'] = None):
         """ 获取节点的rpc连接信息
