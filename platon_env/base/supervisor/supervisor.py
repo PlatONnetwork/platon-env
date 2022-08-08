@@ -92,4 +92,5 @@ class Supervisor(Process):
         if not file:
             current_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
             file = join_path(current_path, 'supervisor.conf')
+        # 只能用缓存方式上传
         self.host.fast_put(file, self.config_file, sudo=True)

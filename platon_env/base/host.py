@@ -18,7 +18,6 @@ class Host:
                  certificate: str = None,
                  password: str = None,
                  port: int = 22,
-                 is_superviosr: bool = True,
                  ):
         """
         初始化远程主机对象并尝试连接，支持免密/密码/证书方式。
@@ -30,7 +29,6 @@ class Host:
             password: 密码/证书密码
             port: ssh端口
             processes: 要注册的进程
-            is_superviosr: 是否安装superviosr（用于管理进程）
         """
         self.ip = ip
         self.port = port
@@ -40,10 +38,7 @@ class Host:
         self._connection = None
         self.home_dir = join_path('/home', self.username)
         self.tmp_dir = '.env-tmp'
-        self.is_superviosr = is_superviosr
-        if self.is_superviosr:
-            self.supervisor = Supervisor(self)
-            self.supervisor.install()
+        self.supervisor = Supervisor(self)
 
     def __eq__(self, other):
         if self.ip == other.ip and self.username == other.username:
@@ -103,7 +98,7 @@ class Host:
         time.sleep(random.randint(1, 3))
         return self.ssh(f'test -e {path}', strip=False).ok
 
-    def fast_put(self, local, remote=None, sudo=False):
+    def fast_put(self, local, remote=None, sudo=False, time_out=60):
         """ 使用缓存机制，上传文件到远程主机，以提高上传速度
         """
         _md5 = md5(local)
@@ -117,11 +112,11 @@ class Host:
                 self.connection.put(local, tmp_file)
             else:
                 # 循环校验文件md5, 校验不通过则等待(可能其他线程正在上传中)，最多等待180s
-                for _ in range(60):
+                for _ in range(time_out):
                     stdout = self.ssh(f'md5sum {tmp_file}')
                     if _md5 in stdout.split(' ')[0]:
                         break
-                    time.sleep(3)
+                    time.sleep(1)
 
         try:
             put()

@@ -2,11 +2,12 @@ import json
 from dataclasses import dataclass, field, asdict
 from typing import List
 from dacite import from_dict
+from platon_env.utils import concurrent_executor
 from ruamel import yaml
 
 from platon_env.base.host import Host
 from platon_env.node import Node
-from platon_env.utils.key.keytool import gen_node_keypair, gen_bls_keypair
+from platon_env.utils.key import gen_node_keypair, gen_bls_keypair
 
 
 @dataclass
@@ -64,10 +65,10 @@ class NodeGroupData(CommonData):
 class ChainData:
     platon: str
     network: str
-    genesis: str
-    keystore: str
-    ssl: bool
-    static_nodes: List[str] = field(default_factory=[])
+    genesis: str = ''
+    keystore: str = ''
+    ssl: bool = False
+    static_nodes: List[str] = None
     deploy_dir: str = None
     init: NodeGroupData = None
     normal: NodeGroupData = None
@@ -104,7 +105,6 @@ def chain_factory(file: str):
                     member.username,
                     password=member.password,
                     port=member.ssh_port,
-                    is_superviosr=True,
                     )
         node = Node(host,
                     chain_data.platon,
@@ -129,7 +129,6 @@ def chain_factory(file: str):
                     member.username,
                     password=member.password,
                     port=member.ssh_port,
-                    is_superviosr=True,
                     )
         node = Node(host,
                     chain_data.platon,
@@ -149,4 +148,8 @@ def chain_factory(file: str):
         nodes.append(node)
 
     from platon_env.chain import Chain
-    return Chain(nodes, genesis_file=chain_data.genesis)
+    chain = Chain(nodes, genesis_file=chain_data.genesis)
+    # 并行安装host依赖包
+    concurrent_executor(chain.hosts, 'prepare')
+
+    return chain

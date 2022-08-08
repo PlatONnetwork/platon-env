@@ -1,5 +1,6 @@
 import os
 import re
+import rwlock
 from typing import List, Literal
 
 from loguru import logger
@@ -8,11 +9,11 @@ from platon_aide import Aide
 
 from platon_env.base.host import Host
 from platon_env.base.process import Process
-from platon_env.utils import join_path, do_once
-from platon_env.utils import tar_files
+from platon_env.utils import join_path, tar_files
 
 
 class Node(Process):
+    _key_lock = rwlock.RWLock()
 
     def __init__(self,
                  host: Host,
@@ -194,7 +195,7 @@ class Node(Process):
                                warn=False, strip=False)
         if result.failed or ('Fatal' in result.stderr or 'Error' in result.stderr):
             raise SSHException(result.stderr)
-        logger.info(f'Node {self} init success!')
+        logger.debug(f'Node {self} init success!')
 
     def start(self, options: str = ''):
         """ 使用supervisor启动节点
@@ -202,19 +203,19 @@ class Node(Process):
         self.options = options or self.options
         self.host.supervisor.add(self.name, self.supervisor_config)
         self.host.supervisor.start(self.name)
-        logger.info(f'Node {self} start success!')
+        logger.debug(f'Node {self} start success!')
 
     def restart(self):
         """ 使用supervisor重启节点
         """
         self.host.supervisor.restart(self.name)
-        logger.info(f'Node {self} restart success!')
+        logger.debug(f'Node {self} restart success!')
 
     def stop(self):
         """ 使用supervisor停止节点
         """
         self.host.supervisor.stop(self.name)
-        logger.info(f'Node {self} stop success!')
+        logger.debug(f'Node {self} stop success!')
 
     def upload_platon(self, platon_file):
         """ 使用缓存上传platon
@@ -227,11 +228,19 @@ class Node(Process):
         """ 使用缓存上传keystore，支持单个文件与目录
         """
         if os.path.isfile(keystore):
-            self.host.fast_put(keystore, self.keystore_dir)
+            self.host.ssh(f'mkdir -p {self.keystore_dir}')
+            self.host.connection.put(keystore, self.keystore_dir)
         elif os.path.isdir(keystore):
             tar_file = keystore + '.tar.gz'
-            do_once(tar_files, source=keystore, dest=tar_file)
+            # 添加写锁，压缩文件
+            Node._key_lock.writer_lock.acquire()
+            tar_files(keystore, tar_file)
+            Node._key_lock.writer_lock.release()
+            # 添加读锁，上传文件
+            Node._key_lock.reader_lock.acquire()
             tmp_file_path = self.host.fast_put(tar_file)
+            Node._key_lock.reader_lock.release()
+            # 解压钱包文件到节点
             self.host.ssh(f'mkdir -p {self.data_dir}')
             self.host.ssh(f'tar xzvf {tmp_file_path} -C {self.data_dir}')
         else:
