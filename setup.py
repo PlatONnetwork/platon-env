@@ -20,7 +20,7 @@ with open('./README.md', encoding='utf-8') as readme:
 setup(
     name='platon-env',
     # *IMPORTANT*: Don't manually change the version here. Use the 'bumpversion' utility.
-    version='1.2.6',
+    version='1.2.7',
     description="""Common library to deployment platon chain""",
     long_description=long_description,
     long_description_content_type='text/markdown',

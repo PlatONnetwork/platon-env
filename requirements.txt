@@ -1,5 +1,9 @@
-dacite>=1.6.0
-fabric>=2.6.0
-loguru>=0.5.3
-paramiko>=2.8.0
-ruamel.base>=1.0.0
+dacite==1.6.0
+fabric==2.7.0
+loguru==0.5.3
+paramiko==2.8.0
+platon_aide>=1.2.5
+platon_keys>=1.2.0
+platon_utils>=1.2.0
+ruamel.base==1.0.0
+rwlock==0.0.7
