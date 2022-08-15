@@ -80,23 +80,25 @@ class Node(Process):
         """
         return f"enode://{self.node_id}@{self.host.ip}:{self.p2p_port}"
 
-    def gql(self, scheme: Literal['ws', 'http'] = None):
+    def gql(self, scheme: Literal['ws', 'http'] = 'http'):
         """ 获取节点的graphql连接信息
         注意：当前仅支持http方式，其他scheme为超前设计
         """
-        match = re.search('--graphql', self.options)
+        if scheme == 'ws':
+            raise Exception('webSocket gql is currently not supported')
 
+        match = re.search('--graphql', self.options)
         if match:
             return f"{self.rpc(scheme)}/graphql/platon"
 
         return None
 
-    def rpc(self, scheme: Literal['ws', 'http'] = None):
+    def rpc(self, scheme: Literal['ws', 'http'] = 'http'):
         """ 获取节点的rpc连接信息
         """
         options = self.options + ' '  # 在后面添加' '，避免出现miss match
-        ws_match = re.search('--wsport (.+?) ', options)
-        http_match = re.search('--rpcport (.+?) ', options)
+        ws_match = re.search('--ws.port (.+?) ', options)
+        http_match = re.search('--http.port (.+?) ', options)
 
         if (scheme == 'ws' or not scheme) and ws_match:
             if self.ssl:
