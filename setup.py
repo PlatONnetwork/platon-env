@@ -11,6 +11,7 @@ deps = {
         'loguru>=0.5.3',
         'paramiko>=2.8.0',
         'ruamel.base>=1.0.0',
+        'rwlock>=0.0.7',
     ]
 }
 
