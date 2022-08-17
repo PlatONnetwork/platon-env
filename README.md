@@ -1,22 +1,25 @@
-# PlatON-Deploy
-PlatON 区块链网络部署工具
+# platon-env
+PlatON区块链部署工具，能够帮你自由的部链、加入、管理PlatON区块链
 
-## 特性
-支持自由的部链形式，主要包括：
-1. 部署私链
-2. 部署节点，加入指定链
+
+## 安装方法
+```shell
+pip install platon_env
+```
 
 
 ## 使用方法
 ```python
 from platon_env.chain import Chain
 
-chain = Chain.from_file('env-files/chain_file.yml')
+# 按照配置文件内容，部署区块链
+chain_file = 'env-files/chain_file.yml'
+chain = Chain.from_file(chain_file)
 chain.install()
 ```
 
 
-### 配置文件
+## 配置文件
 
 ```yml
 chain:
@@ -83,3 +86,4 @@ chain:
         bls_pubkey: ab0f251830934d41eff50b811c8c056c0ff5ae60d4e1f12a76a0c429c50d76ca7c26ca698fec5eab3706cd5998b78d0d2c4cf45cb4ea9255229951fc8ea442d815c916c403ba877f396c2579d80812eb5f074d62d6bf749070ade651fc51db05
         bls_prikey: d5e8a21ad50d87284a3001747b093f768d4b6d3696418a5268288be221262420
   ```
+
