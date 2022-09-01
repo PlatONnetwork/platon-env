@@ -1,3 +1,4 @@
+import traceback
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 from functools import wraps
 
@@ -18,7 +19,7 @@ def executor_wrapper(obj, func_name):
         try:
             result = func(*args, **kwargs)
         except Exception as e:
-            return False, error_msg.format(type(obj), obj, func.__name__, e.with_traceback())
+            return False, error_msg.format(type(obj), obj, func.__name__, traceback.print_exc())
         # todo: 正常返回时，增加对应的obj信息
         return True, result
 

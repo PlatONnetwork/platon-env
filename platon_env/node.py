@@ -163,15 +163,16 @@ class Node(Process):
             if not genesis_file:
                 raise ValueError('Private network needs genesis file.')
             self.host.connection.put(genesis_file, self.genesis_file)
+            self.init()
+
         if keystore:
             self.upload_keystore(keystore)
         if static_nodes:
             self.set_static_nodes(static_nodes)
+        self.host.ssh(f'mkdir -p {self.log_dir}')
 
         # 重置接口信息
         self.current_aide = None
-        # 启动节点
-        self.init()
         self.start(options)
 
         logger.info(f'Node {self} install success!')
@@ -192,7 +193,6 @@ class Node(Process):
     def init(self):
         """ 初始化节点
         """
-        self.host.ssh(f'mkdir -p {self.log_dir}')
         result = self.host.ssh(f'{self.platon} --datadir {self.data_dir} init {self.genesis_file}',
                                warn=False, strip=False)
         if result.failed or ('Fatal' in result.stderr or 'Error' in result.stderr):
