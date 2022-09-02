@@ -35,6 +35,7 @@ class Supervisor(Process):
     def clean(self):
         """ 清理supervisor管理的所有进程
         """
+        self.stop('all')
         self.host.ssh(f'rm -f {self.process_config_path}/*', sudo=True, warn=False)
         self.update()
 
