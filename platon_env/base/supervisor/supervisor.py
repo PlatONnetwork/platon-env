@@ -32,6 +32,12 @@ class Supervisor(Process):
             self.host.ssh(f'supervisord -c {self.config_file}', sudo=True, warn=False)
             self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True)
 
+    def clean(self):
+        """ 清理supervisor管理的所有进程
+        """
+        self.host.ssh(f'rm -f {self.process_config_path}/*', sudo=True, warn=False)
+        self.update()
+
     def uninstall(self):
         """ 卸载supervisor
         """
@@ -55,7 +61,7 @@ class Supervisor(Process):
         """ 通过进程名称，删除supervisor管理的进程
         """
         process_file = join_path(self.process_config_path, f'{name}.conf')
-        self.host.ssh(f'rm -rf {process_file}', sudo=True, warn=False)
+        self.host.ssh(f'rm -f {process_file}', sudo=True, warn=False)
         self.update(name)
 
     def status(self, name='') -> bool:
