@@ -190,11 +190,16 @@ class Node(Process):
         """
         return self.host.supervisor.status(self.name)
 
-    def init(self):
+    def init(self, force=False):
         """ 初始化节点
         """
+        if force:
+            self.host.ssh(f'rm -rf {self.data_dir}', warn=False, strip=False)
+
         result = self.host.ssh(f'{self.platon} --datadir {self.data_dir} init {self.genesis_file}',
-                               warn=False, strip=False)
+                               warn=False,
+                               strip=False
+                               )
         if result.failed or ('Fatal' in result.stderr or 'Error' in result.stderr):
             raise SSHException(result.stderr)
         logger.debug(f'Node {self} init success!')
@@ -202,7 +207,7 @@ class Node(Process):
     def start(self, options: str = ''):
         """ 使用supervisor启动节点
         """
-        self.options = options or self.options
+        self.options = options or self.options  # 在添加supervisor配置的时候用到
         self.host.supervisor.add(self.name, self.supervisor_config)
         self.host.supervisor.start(self.name)
         logger.debug(f'Node {self} start success!')

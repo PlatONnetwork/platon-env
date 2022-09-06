@@ -103,11 +103,11 @@ class Chain(Service):
         nodes = nodes or self.nodes
         return concurrent_executor(nodes, 'status')
 
-    def init(self, nodes: List[Node] = None):
+    def init(self, force=False, nodes: List[Node] = None):
         """ 初始化链
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'init')
+        return concurrent_executor(nodes, 'init', force)
 
     def start(self,
               options: str = '',
