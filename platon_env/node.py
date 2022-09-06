@@ -194,7 +194,7 @@ class Node(Process):
         """ 初始化节点
         """
         if force:
-            self.host.ssh(f'rm -rf {self.data_dir}', warn=False, strip=False)
+            self.host.ssh(f'rm -rf {join_path(self.data_dir, "platon")}', warn=False, strip=False)
 
         result = self.host.ssh(f'{self.platon} --datadir {self.data_dir} init {self.genesis_file}',
                                warn=False,
