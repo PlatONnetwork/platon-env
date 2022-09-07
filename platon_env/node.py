@@ -175,7 +175,7 @@ class Node(Process):
         self.current_aide = None
         self.start(options)
 
-        logger.info(f'Node {self} install success!')
+        logger.debug(f'Node {self} install success!')
 
     def uninstall(self):
         """ 清理节点，会停止节点并删除节点文件
@@ -183,7 +183,7 @@ class Node(Process):
         self.stop()
         self.host.ssh(f'rm -rf {self.deploy_path}', sudo=True)
         self.host.supervisor.remove(self.name)
-        logger.info(f'Node {self} uninstall success!')
+        logger.debug(f'Node {self} uninstall success!')
 
     def status(self) -> bool:
         """ 获取节点的运行状态
@@ -194,7 +194,7 @@ class Node(Process):
         """ 初始化节点
         """
         if force:
-            self.host.ssh(f'rm -rf {join_path(self.data_dir, "platon")}', warn=False, strip=False)
+            self.host.ssh(f'rm -rf {join_path(self.data_dir, "platon")}', sudo=True, warn=False, strip=False)
 
         result = self.host.ssh(f'{self.platon} --datadir {self.data_dir} init {self.genesis_file}',
                                warn=False,

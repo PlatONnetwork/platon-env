@@ -1,4 +1,5 @@
 import json
+import os
 from typing import List
 
 from platon_env.node import Node
@@ -36,5 +37,6 @@ class Genesis:
     def save_as(self, file):
         """ 保存为本地文件
         """
+        os.makedirs(os.path.dirname(file), exist_ok=True)
         with open(file, mode='w', encoding='utf-8') as f:
             f.write(json.dumps(self.data, indent=4))
