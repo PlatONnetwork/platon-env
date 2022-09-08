@@ -24,15 +24,13 @@ class Supervisor(Process):
             self.host.ssh('apt update', sudo=True, warn=False)
             self.host.ssh('apt install -y --reinstall supervisor', sudo=True, warn=False)
             self._upload_config()
-            logger.info(f'Supervisor install success!')
+            logger.info(f'Supervisor {self.host.ip} install success!')
 
         pid = self.host.pid('supervisord')
         if not pid:
             # todo: 增加 config_file 不存在的判断
             self.host.ssh(f'supervisord -c {self.config_file}', sudo=True, warn=False)
             self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True)
-
-        logger.info(f'Supervisor {self.host.ip} install success!')
 
     def clean(self):
         """ 清理supervisor管理的所有进程
