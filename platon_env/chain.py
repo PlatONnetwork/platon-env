@@ -1,5 +1,7 @@
 from typing import List
 
+from loguru import logger
+
 from platon_env.base.host import Host
 from platon_env.base.service import Service
 from platon_env.node import Node
@@ -23,6 +25,9 @@ class Chain(Service):
             nodes = []
         for node in nodes:
             self.add_process(node)
+
+    def __str__(self):
+        return hex(hash(id(self)))[2:8]
 
     @property
     def nodes(self):
@@ -64,21 +69,25 @@ class Chain(Service):
             self.full_genesis_file(genesis_file, nodes)
         static_nodes = static_nodes or [node.enode for node in nodes]
 
-        return concurrent_executor(nodes,
-                                   'install',
-                                   platon,
-                                   network,
-                                   genesis_file,
-                                   keystore,
-                                   static_nodes,
-                                   options,
-                                   )
+        concurrent_executor(nodes,
+                            'install',
+                            platon,
+                            network,
+                            genesis_file,
+                            keystore,
+                            static_nodes,
+                            options,
+                            )
+
+        logger.info(f'Chain {self} install success!')
 
     def uninstall(self, nodes: List[Node] = None):
         """ 清理链，会停止节点并删除节点文件
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'uninstall')
+        concurrent_executor(nodes, 'uninstall')
+
+        logger.info(f'Chain {self} uninstall success!')
 
     def add_process(self, node: Node):
         """ 将进程添加到服务，进行统一管理
@@ -96,18 +105,24 @@ class Chain(Service):
             self.hosts.append(node.host)
 
         self.processes[id(node)] = node
+        logger.debug(f'Chain {self} add node {node} success!')
 
     def status(self, nodes: List[Node] = None):
         """ 检查链运行状态
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'status')
+        result = concurrent_executor(nodes, 'status')
+
+        logger.debug(f'Chain {self} status：{result}')
+        return result
 
     def init(self, force=False, nodes: List[Node] = None):
         """ 初始化链
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'init', force)
+        concurrent_executor(nodes, 'init', force)
+
+        logger.info(f'Chain {self} init success!')
 
     def start(self,
               options: str = '',
@@ -116,37 +131,49 @@ class Chain(Service):
         """ 启动链
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'start', options)
+        concurrent_executor(nodes, 'start', options)
+
+        logger.info(f'Chain {self} start success!')
 
     def restart(self, nodes: List[Node] = None):
         """ 重启链
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'restart')
+        concurrent_executor(nodes, 'restart')
+
+        logger.info(f'Chain {self} restart success!')
 
     def stop(self, nodes: List[Node] = None):
         """ 停止链
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'stop')
+        concurrent_executor(nodes, 'stop')
+
+        logger.info(f'Chain {self} stop success!')
 
     def upload_platon(self, platon_file, nodes: List[Node] = None):
         """ 使用缓存上传platon
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'upload_platon', platon_file)
+        concurrent_executor(nodes, 'upload_platon', platon_file)
+
+        logger.debug(f'Chain {self} upload platon success!')
 
     def upload_keystore(self, keystore_path, nodes: List[Node] = None):
         """ 使用缓存上传keystore并解压
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'upload_keystore', keystore_path)
+        concurrent_executor(nodes, 'upload_keystore', keystore_path)
+
+        logger.debug(f'Chain {self} upload keystore success!')
 
     def set_static_nodes(self, enodes: List[str], nodes: List[Node] = None):
         """ 指定要连接的静态节点，可以指定多个
         """
         nodes = nodes or self.nodes
-        return concurrent_executor(nodes, 'set_static_nodes', enodes)
+        concurrent_executor(nodes, 'set_static_nodes', enodes)
+
+        logger.debug(f'Chain {self} set static nodes success!')
 
     def full_genesis_file(self, genesis_file, nodes: List[Node] = None):
         """ 填充创世文件，目前仅填充初始验证节点

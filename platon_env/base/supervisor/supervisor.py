@@ -32,6 +32,8 @@ class Supervisor(Process):
             self.host.ssh(f'supervisord -c {self.config_file}', sudo=True, warn=False)
             self.host.ssh('chmod 770 /var/run/supervisor.sock', sudo=True)
 
+        logger.info(f'Supervisor {self.host.ip} install success!')
+
     def clean(self):
         """ 清理supervisor管理的所有进程
         """
@@ -63,7 +65,7 @@ class Supervisor(Process):
         """
         process_file = join_path(self.process_config_path, f'{name}.conf')
         self.host.ssh(f'rm -f {process_file}', sudo=True, warn=False)
-        self.update(name)
+        return self.update(name)
 
     def status(self, name='') -> bool:
         """ 通过进程名称，查看进程状态
@@ -76,22 +78,22 @@ class Supervisor(Process):
     def update(self, name=''):
         """ 更新supervisor的进程列表
         """
-        self.host.ssh(self.update_command.format(name), warn=False)
+        return self.host.ssh(self.update_command.format(name), warn=False)
 
     def start(self, name):
         """ 启动进程
         """
-        self.host.ssh(self.start_command.format(name), warn=False)
+        return self.host.ssh(self.start_command.format(name), warn=False)
 
     def restart(self, name):
         """ 重启进程
         """
-        self.host.ssh(self.restart_command.format(name), warn=False)
+        return self.host.ssh(self.restart_command.format(name), warn=False)
 
     def stop(self, name):
         """ 停止进程
         """
-        self.host.ssh(self.stop_command.format(name), warn=False)
+        return self.host.ssh(self.stop_command.format(name), warn=False)
 
     def _upload_config(self, file=None):
         """ 上传supervisor的配置文件
