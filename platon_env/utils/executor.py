@@ -19,7 +19,7 @@ def executor_wrapper(obj, func_name):
         try:
             result = func(*args, **kwargs)
         except Exception as e:
-            return False, error_msg.format(type(obj), obj, func.__name__, traceback.print_exc())
+            return False, error_msg.format(type(obj), obj, func.__name__, f'{e.args} + {traceback.format_exc()}')
         # todo: 正常返回时，增加对应的obj信息
         return True, result
 

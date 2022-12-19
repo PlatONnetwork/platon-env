@@ -93,22 +93,20 @@ class Node(Process):
 
         return None
 
-    def rpc(self, scheme: Literal['ws', 'http'] = 'http'):
+    def rpc(self, scheme: Literal['ws', 'http'] = None):
         """ 获取节点的rpc连接信息
         """
         options = self.options + ' '  # 在后面添加' '，避免出现miss match
-        ws_match = re.search('--ws.port (.+?) ', options)
         http_match = re.search('--http.port (.+?) ', options)
-
-        if (scheme == 'ws' or not scheme) and ws_match:
-            if self.ssl:
-                scheme = 'wss'
-            return f"{scheme}://{self.host.ip}:{ws_match.group(1)}"
+        ws_match = re.search('--ws.port (.+?) ', options)
 
         if (scheme == 'http' or not scheme) and http_match:
-            if self.ssl:
-                scheme = 'https'
+            scheme = 'https' if self.ssl else 'http'
             return f"{scheme}://{self.host.ip}:{http_match.group(1)}"
+
+        if (scheme == 'ws' or not scheme) and ws_match:
+            scheme = 'wss' if self.ssl else 'ws'
+            return f"{scheme}://{self.host.ip}:{ws_match.group(1)}"
 
         raise ValueError(f'The rpc is not open.')
 
@@ -171,8 +169,6 @@ class Node(Process):
             self.set_static_nodes(static_nodes)
         self.host.ssh(f'mkdir -p {self.log_dir}')
 
-        # 重置接口信息
-        self.current_aide = None
         self.start(options)
 
         logger.debug(f'Node {self} install success!')

@@ -129,7 +129,7 @@ class Host:
         path, _ = os.path.split(remote)
         if not self.file_exist(path):
             self.ssh(f'mkdir -p {path}', sudo=sudo)
-        self.ssh(f'cp {tmp_file} {remote}', sudo=sudo)
+        self.ssh(f'cp -f {tmp_file} {remote}', sudo=sudo)
 
     def write_file(self, content: str, file):
         """ 将文本内容写入远程主机的文件，目前仅支持写入新的文件
