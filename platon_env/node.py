@@ -125,7 +125,7 @@ class Node(Process):
     @property
     def aide(self):
         if not self.current_aide:
-            self.current_aide = Aide(self.rpc(), self.gql())
+            self.current_aide = Aide(self.rpc())
 
         return self.current_aide
 
