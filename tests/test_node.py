@@ -1,17 +1,9 @@
 import pytest
+import os
 
 from platon_env.base.host import Host
 from platon_env.genesis import Genesis
-from platon_env.node import Node, NodeOpts
-
-# from utils.util import CMD
-
-# host = Host('10.10.8.209', 'juzhen', '123456')
-# node_id = '35bb5daad814fe902030cba6fd2d3ec60906dab70ba5df4d42a19448d300ab203cfd892c325f6716965dd93d8de2a377a2806c9703b69b68287577c70f9e7c07'
-# node_key = '0db2cc59f8d87beb65d5ebd56c9beb9f316a406918f66679b638ebd78bb695e1'
-# host = Host('192.168.16.121', 'juzix', password='123456')
-
-# genesis_file = 'file/genesis.json'
+from platon_env.node import Node
 
 node_id = '493c66bd7d6051e42a68bffa5f70005555886f28a0d9f10afaca4abc45723a26d6b833126fb65f11e3be51613405df664e7cda12baad538dd08b0a5774aa22cf'
 node_key = '3f9301b1e574ce779e3d4ba054f3275e3a7d6d2ab22d1ef4b6b94e1b1491b55f'
@@ -20,30 +12,31 @@ network = 'private'
 bls_pubKey = '5b6ce2480feee69b2007516054a25ace5d7ea2026d271fbdadcc2266f9e21e3e912f7d770c85f45385ba44e673e22b0db5ef5af1f57adf75d9b1b7628748d33a4a57ee2c8c7236691e579d219d42e1d875e084359acb8231fbc3da8ae400200e'
 bls_prikey = 'edc1eafa379dadbe39297b629d0e17a4c7c3d90d8b7d08795a7db79dd498ec36'
 
-genesis_file = r'C:\PlatON\PlatON_code\platon-env\tests\file\genesis.json'
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+genesis_file = os.path.join(base_dir, 'tests/file/genesis.json')
 genesis = Genesis(genesis_file)
 genesis.fill_init_nodes(content=[
     {
-        "node": "enode://493c66bd7d6051e42a68bffa5f70005555886f28a0d9f10afaca4abc45723a26d6b833126fb65f11e3be51613405df664e7cda12baad538dd08b0a5774aa22cf@192.168.21.42:16789",
+        "node": "enode://493c66bd7d6051e42a68bffa5f70005555886f28a0d9f10afaca4abc45723a26d6b833126fb65f11e3be51613405df664e7cda12baad538dd08b0a5774aa22cf@10.10.8.182:16789",
         "blsPubKey": "5b6ce2480feee69b2007516054a25ace5d7ea2026d271fbdadcc2266f9e21e3e912f7d770c85f45385ba44e673e22b0db5ef5af1f57adf75d9b1b7628748d33a4a57ee2c8c7236691e579d219d42e1d875e084359acb8231fbc3da8ae400200e"
     }])
 
 genesis.save_as(genesis_file)
 
-base_dir = '/home/shing'
-host = Host('192.168.21.42', 'shing', password='aa123456')
-node = Node(host, node_id, node_key, network, bls_pubkey=bls_pubKey, bls_prikey=bls_prikey, base_dir=base_dir)
+options = '--graphql --http --http.addr 0.0.0.0 --http.port 6789 --http.api web3,platon,txpool,net,admin,personal,debug --http.ethcompatible --ws --ws.addr 0.0.0.0 --ws.port 6790 --wsapi web3,platon,txpool,net,admin,personal,debug --ws.origins "*" --rpc.txfeecap 0 --rpc.gascap 0 --rpc.allow-unprotected-txs --allow-insecure-unlock --txpool.nolocals --db.nogc --debug --verbosity 5'
+host = Host('10.10.8.182', 'juzix', password='123456')
 rpc_port = '6789'
 rpc_api = 'web3,platon,admin,personal,debug'
-platon = 'file/platon'
-keystore_dir = 'file/keystore.tar.gz'
+platon = os.path.join(base_dir, 'tests/file/platon')
+keystore_dir = os.path.join(base_dir, 'tests/file/keystore')
+
+node = Node(host, platon=platon, network=network, genesis_file=genesis_file, node_id=node_id, node_key=node_key, bls_pubkey=bls_pubKey, bls_prikey=bls_prikey, is_init_node=True, options=options, base_dir='/home/juzix')
 
 
 @pytest.fixture()
 def install_node():
-    nodeOpts = NodeOpts(rpc_port=rpc_port, rpc_api=rpc_api, ws_port=None, ws_api=None, extra_opts=None)
-    node.install(platon=platon, network=network, genesis_file=genesis_file, static_nodes=node.static_nodes,
-                 keystore_dir=keystore_dir, options=nodeOpts)
+    node.install(platon=platon, network=network, genesis_file=genesis_file)
 
     return node
 
@@ -54,13 +47,7 @@ def test_enode():
 
 
 def test_install():
-    platon = 'file/platon'
-    # genesis_file = 'file/genesis.json'
-    keystore_dir = 'file/keystore.tar.gz'
-    # cmd = CMD(6789, 'platon,txpool,admin,debug')
-    nodeOpts = NodeOpts(rpc_port=rpc_port, rpc_api=rpc_api, ws_port=None, ws_api=None, extra_opts=None)
-    node.install(platon=platon, network=network, genesis_file=genesis_file, static_nodes=node.static_nodes,
-                 keystore_dir=keystore_dir, options=nodeOpts)
+    node.install(platon=platon, network=network, genesis_file=genesis_file)
     pid = host.ssh(f'ps -ef | grep {node.name} | grep -v grep | ' + "awk {'print $2'}")
     assert pid != '' and int(pid) > 0
 

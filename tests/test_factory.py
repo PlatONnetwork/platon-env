@@ -1,6 +1,6 @@
 import os
 from platon_env.chain import Chain
-from utils.path import join_path
+from platon_env.utils import join_path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

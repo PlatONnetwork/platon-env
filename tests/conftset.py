@@ -1,5 +1,5 @@
 import os
-from utils.path import join_path
+from platon_env.utils import join_path
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 

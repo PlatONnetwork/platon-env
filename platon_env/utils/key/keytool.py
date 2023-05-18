@@ -1,7 +1,7 @@
 import os
 import sys
 
-from platon_keys import keys
+from eth_keys import keys
 from platon_utils.curried import keccak, text_if_str, to_bytes
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
